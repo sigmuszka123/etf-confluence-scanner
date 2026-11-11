@@ -1,0 +1,56 @@
+name: ETF Confluence Scanner
+
+on:
+  schedule:
+    # Uruchomienie od poniedziałku do piątku o 17:35 CET (czas zimowy: 16:35 UTC)
+    # W czasie letnim (CEST / UTC+2) zamknięcie sesji następuje o 15:30 UTC.
+    # Harmonogram: Minuta 35, Godzina 16 (UTC), Dni tygodnia: 1-5 (Pn-Pt)
+    - cron: '35 16 * * 1-5'
+
+  # Umożliwia ręczne uruchomienie skanera z poziomu zakładki Actions w GitHubie
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Uruchom w trybie testowym DRY-RUN (bez wysyłania na Telegram)'
+        required: false
+        default: 'false'
+        type: boolean
+      test_alert:
+        description: 'Wyślij próbny alert testowy'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  run-scanner:
+    name: Execute Daily ETF Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run ETF Confluence Scanner
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          FLAGS=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            FLAGS="$FLAGS --dry-run"
+          fi
+          if [ "${{ github.event.inputs.test_alert }}" = "true" ]; then
+            FLAGS="$FLAGS --test-alert"
+          fi
+          python main.py $FLAGS

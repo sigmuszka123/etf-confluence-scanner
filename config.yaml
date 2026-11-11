@@ -1,0 +1,66 @@
+# =====================================================================
+# ETF Confluence Scanner - Configuration File
+# =====================================================================
+
+data:
+  tickers_file: "tickers.csv"
+  period: "180d"
+  interval: "1d"
+  batch_size: 50
+
+# Filtr płynności (Liquidity Filter)
+liquidity_filter:
+  min_volume_sma_20: 5000  # Odrzucenie instrumentów z SMA(Volume, 20) < 5 000
+
+# Parametry wskaźników technicznych
+indicators:
+  bollinger_bands:
+    window: 20
+    num_std: 2.0
+  rsi:
+    window: 14
+    oversold_level: 35.0      # Kryterium 1: RSI < 35
+    rebound_level: 30.0       # Kryterium 1: powrót ponad 30
+    rebound_lookback: 2       # sesje wstecz do wykrycia przecięcia poziomu 30
+  macd:
+    fast: 12
+    slow: 26
+    signal: 9
+  moving_averages:
+    ema_short: 9
+    sma_medium: 20
+    sma_long: 200
+  rvol:
+    window: 20
+    absorption_threshold: 1.4  # Kryterium 4: RVol >= 1.4x średniej
+  fibonacci:
+    lookback_window: 60       # Swing High/Low z ostatnich 60 sesji
+    margin_pct: 0.01          # Margines +/- 1% wokół strefy Fibo
+    key_levels:
+      - 0.382
+      - 0.500
+      - 0.618
+
+# Matryca konfluencji (Scoring)
+scoring:
+  min_criteria_required: 4    # Wymagane minimum 3 z 5 kryteriów
+
+# Zarządzanie ryzykiem (Risk Management)
+risk_management:
+  sl_buffer_pct: 0.005        # Stop Loss: 0.5% poniżej dołka świecy/wsparcia Fibo
+  min_rr_tp1_warning: 1.0     # Oznaczenie podwyższonego ryzyka jeśli R:R do TP1 < 1.0
+
+# Konfiguracja powiadomień Telegram
+telegram:
+  enabled: true
+  token_env_var: "TELEGRAM_BOT_TOKEN"
+  chat_id_env_var: "TELEGRAM_CHAT_ID"
+  request_timeout: 10
+  max_retries: 3
+  # Gdy dry_run=true, powiadomienia są logowane do konsoli zamiast wysyłania HTTP
+  dry_run: false
+
+# Logowanie
+logging:
+  level: "INFO"
+  format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"

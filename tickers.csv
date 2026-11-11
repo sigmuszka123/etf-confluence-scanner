@@ -1,0 +1,54 @@
+ticker,name,sector
+SXR8.DE,iShares Core S&P 500 UCITS ETF (Acc),Broad Index (US)
+CSPX.L,iShares Core S&P 500 UCITS ETF (USD),Broad Index (US)
+VUSA.L,Vanguard S&P 500 UCITS ETF (Dist),Broad Index (US)
+VUAA.DE,Vanguard S&P 500 UCITS ETF (Acc),Broad Index (US)
+SXRV.DE,iShares Nasdaq 100 UCITS ETF (Acc),Broad Index (Tech)
+EQQQ.DE,Invesco EQQQ Nasdaq-100 UCITS ETF,Broad Index (Tech)
+CNDX.L,iShares Nasdaq 100 UCITS ETF,Broad Index (Tech)
+ZPRR.DE,SPDR Russell 2000 US Small Cap UCITS ETF,Broad Index (Small Cap)
+RTWO.L,L&G Russell 2000 US Small Cap UCITS ETF,Broad Index (Small Cap)
+EXS1.DE,iShares Core DAX UCITS ETF (Dist),Broad Index (Germany)
+DAXEX.DE,Deka DAX UCITS ETF,Broad Index (Germany)
+VWCE.DE,Vanguard FTSE All-World UCITS ETF (Acc),Broad Index (Global)
+VGWL.DE,Vanguard FTSE All-World UCITS ETF (Dist),Broad Index (Global)
+EUNL.DE,iShares Core MSCI World UCITS ETF (Acc),Broad Index (Global)
+SWDA.L,iShares Core MSCI World UCITS ETF (USD),Broad Index (Global)
+SX5EEX.DE,iShares Core EURO STOXX 50 UCITS ETF (Dist),Broad Index (Europe)
+CSX5.L,iShares Core EURO STOXX 50 UCITS ETF (GBP),Broad Index (Europe)
+ISF.L,iShares Core FTSE 100 UCITS ETF (Dist),Broad Index (UK)
+VUKG.L,Vanguard FTSE 100 UCITS ETF (Acc),Broad Index (UK)
+QDVE.DE,iShares S&P 500 Information Technology Sector UCITS ETF,Information Technology
+VVSM.DE,VanEck Semiconductor UCITS ETF,Semiconductors
+SMGB.L,VanEck Semiconductor UCITS ETF (GBP),Semiconductors
+XDWT.DE,Xtrackers MSCI World Information Technology UCITS ETF,Big Tech
+WTCH.L,Amundi MSCI World Information Technology UCITS ETF,Big Tech
+CYSE.DE,L&G Cyber Security UCITS ETF,Cybersecurity
+ISPY.L,L&G Cyber Security UCITS ETF,Cybersecurity
+XDW0.DE,Xtrackers MSCI World Energy UCITS ETF,Energy
+QDVA.DE,iShares S&P 500 Energy Sector UCITS ETF,Energy
+IOGP.L,iShares Oil & Gas Exploration & Production UCITS ETF,Energy
+INRG.DE,iShares Global Clean Energy UCITS ETF (Dist),Clean Energy
+INRG.L,iShares Global Clean Energy UCITS ETF (USD),Clean Energy
+XDNF.DE,Xtrackers MSCI World Financials UCITS ETF,Financials
+EXV1.DE,iShares EURO STOXX Banks 30-15 UCITS ETF,Financials / Banks
+BNKS.L,iShares EURO STOXX Banks UCITS ETF,Financials / Banks
+EXXY.DE,iShares Diversified Commodity Swap UCITS ETF,Commodities
+CMOD.L,WisdomTree Enhanced Commodity UCITS ETF,Commodities
+COMM.L,L&G All Commodities UCITS ETF,Commodities
+SGLD.L,Invesco Physical Gold ETC,Commodities / Gold
+4GLD.DE,Xetra-Gold ETC,Commodities / Gold
+QDVK.DE,iShares S&P 500 Materials Sector UCITS ETF,Materials
+XDWI.DE,Xtrackers MSCI World Industrials UCITS ETF,Industrials
+XDWH.DE,Xtrackers MSCI World Health Care UCITS ETF,Health Care
+QDVG.DE,iShares S&P 500 Health Care Sector UCITS ETF,Health Care
+XDWJ.DE,Xtrackers MSCI World Consumer Discretionary UCITS ETF,Consumer Discretionary
+IS3N.DE,iShares Core MSCI Emerging Markets IMI UCITS ETF,Emerging Markets
+EIMI.L,iShares Core MSCI EM IMI UCITS ETF,Emerging Markets
+XMME.DE,Xtrackers MSCI Emerging Markets UCITS ETF,Emerging Markets
+KWEB.L,KraneShares CSI China Internet UCITS ETF (USD),China / Internet
+KWBE.DE,KraneShares CSI China Internet UCITS ETF (EUR),China / Internet
+FXC.L,iShares MSCI China UCITS ETF,China
+HMCH.L,HSBC MSCI China UCITS ETF,China
+NDIA.L,iShares MSCI India UCITS ETF,Emerging Markets / India
+4BRZ.DE,iShares MSCI Brazil UCITS ETF,Emerging Markets / Brazil
