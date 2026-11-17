@@ -70,7 +70,6 @@ META,Meta Platforms (Facebook),USA
 AVGO,Broadcom,USA
 TSLA,Tesla,USA
 LLY,Eli Lilly,USA
-BRKB,Berkshire Hathaway,USA
 WMT,Walmart,USA
 JPM,JPMorgan Chase,USA
 AMD,AMD,USA
@@ -86,7 +85,6 @@ COST,Costco,USA
 KO,Coca-Cola,USA
 CVX,Chevron,USA
 PLTR,Palantir,USA
-RO.SW,Roche,Switzerland
 PG,Procter & Gamble,USA
 CSCO,Cisco,USA
 ORCL,Oracle,USA
@@ -96,19 +94,14 @@ GE,General Electric,USA
 HD,Home Depot,USA
 BAC,Bank of America,USA
 INTC,Intel,USA
-NVS.SW,Novartis,Switzerland
-HSBC.L,HSBC,UK
 PM,Philip Morris International,USA
 AMAT,Applied Materials,USA
 MS,Morgan Stanley,USA
-AZN.L,AstraZeneca,UK
 RY,Royal Bank Of Canada,Canada
 LRCX,Lam Research,USA
-SHEL.L,Shell,UK
 TXN,Texas Instruments,USA
 RTX,RTX,USA
 SAP.DE,SAP,Germany
-NESN.SW,Nestlé,Switzerland
 CAT,Caterpillar,USA
 PANW,Palo Alto Networks,USA
 TMO,Thermo Fisher Scientific,USA
@@ -120,7 +113,6 @@ BABA,Alibaba,China
 TM,Toyota,Japan
 AMGN,Amgen,USA
 MUFG,Mitsubishi UFJ Financial,Japan
-LIN.L,Linde,UK
 SIE.DE,Siemens,Germany
 ANET,Arista Networks,USA
 CRWD,CrowdStrike,USA
@@ -130,7 +122,6 @@ AXP,American Express,USA
 DELL,Dell,USA
 GILD,Gilead Sciences,USA
 GEV,GE Vernova,USA
-ITX.MC,Inditex,Spain
 BHP,BHP Group,Australia
 DIS,Walt Disney,USA
 C,Citigroup,USA
@@ -140,7 +131,6 @@ MCD,McDonald,USA
 APH,Amphenol,USA
 ALV.DE,Allianz SE,Germany
 PEP,Pepsico,USA
-ARM.L,Arm Holdings,UK
 TTE.PA,TotalEnergies,France
 VZ,Verizon,USA
 ABT,Abbott Laboratories,USA
@@ -149,17 +139,12 @@ BLK,BlackRock,USA
 SHOP,Shopify,Canada
 QCOM,QUALCOMM,USA
 DE,Deere & Company (John Deere),USA
-AIR.AS,Airbus,Netherlands
 WELL,Welltower,USA
 PRX.AS,Prosus,Netherlands
-SAN.MC,Santander,Spain
 NEE,Nextera Energy,USA
-NVO.CO,Novo Nordisk,Denmark
 TMUS,T-Mobile US,USA
 UNP,Union Pacific Corporation,USA
 CRM,Salesforce,USA
-IBE.MC,Iberdrola,Spain
-BUD.BR,Anheuser-Busch Inbev,Belgium
 PFE,Pfizer,USA
 DHR,Danaher,USA
 SCHW,Charles Schwab,USA
@@ -168,36 +153,26 @@ SU.PA,Schneider Electric,France
 RMS.PA,Hermès,France
 ISRG,Intuitive Surgical,USA
 SONY,Sony,Japan
-ABBN.SW,ABB,Switzerland
 ACN,Accenture,Ireland
 SMFG,Sumitomo Mitsui Financial Group,Japan
 BX,Blackstone Group,USA
 TJX,TJX Companies,USA
-UBS.SW,UBS,Switzerland
 T,AT&T,USA
 SCCO,Southern Copper,USA
-RR.L,Rolls-Royce Holdings,UK
 SAF.PA,Safran,France
-BBVA.MC,Banco Bilbao Vizcaya Argentaria,Spain
-UL.L,Unilever,UK
 UBER,Uber,USA
-CB.SW,Chubb,Switzerland
 DTE.DE,Deutsche Telekom,Germany
-UCG.MI,UniCredit,Italy
 LMT,Lockheed Martin,USA
 MRVL,Marvell Technology,USA
 VRTX,Vertex Pharmaceuticals,USA
 ETN,Eaton,Ireland
-RIO.L,Rio Tinto,UK
 AI.PA,Air Liquide,France
 BA,Boeing,USA
 SPGI,S&P Global,USA
 PGR,Progressive,USA
-INVEB.ST,Investor AB,Sweden
 HDB,HDFC Bank,India
 IBKR,Interactive Brokers,USA
 APP,AppLovin,USA
-BTI.L,British American Tobacco,UK
 LOW,Lowe's Companies,USA
 MDT,Medtronic,Ireland
 BMY,Bristol-Myers Squibb,USA
@@ -207,12 +182,9 @@ SBUX,Starbucks,USA
 IBN,ICICI Bank,India
 ENR.DE,Siemens Energy,Germany
 MCK,McKesson,USA
-CFR.SW,Compagnie Financière Richemont,Switzerland
 NEM,Newmont,USA
-SPOT.ST,Spotify,Sweden
 SYK,Stryker Corporation,USA
 SNDK,Sandisk,USA
-ISP.MI,Intesa Sanpaolo,Italy
 PH,Parker-Hannifin,USA
 ADP,Automatic Data Processing,USA
 BMO,Bank of Montreal,Canada
@@ -221,10 +193,7 @@ BKNG,Booking Holdings (Booking.com),USA
 COF,Capital One,USA
 PBR,Petrobras,Brazil
 BNP.PA,BNP Paribas,France
-SNY.PA,Sanofi,France
 STX,Seagate Technology,Ireland
-ZURN.SW,Zurich Insurance Group,Switzerland
-BP.L,BP,UK
 CVS,CVS Health,USA
 PDD,PDD Holdings (Pinduoduo),China
 BNS,Scotiabank,Canada
@@ -232,7 +201,6 @@ ABNB,Airbnb,USA
 CME,CME Group,USA
 MAR,Marriott International,USA
 NET,Cloudflare,USA
-ENEL.MI,Enel,Italy
 SO,Southern Company,USA
 CVNA,Carvana,USA
 WDC,Western Digital,USA
@@ -244,7 +212,6 @@ CM,CIBC (Canadian Imperial Bank of Commerce),Canada
 SNOW,Snowflake,USA
 EQIX,Equinix,USA
 NOW,ServiceNow,USA
-GSK.L,GSK plc,UK
 BNY,BNY Mellon (Bank of New York Mellon),USA
 MRNA,Moderna,USA
 DUK,Duke Energy,USA
@@ -257,12 +224,9 @@ MMM,3M,USA
 VLO,Valero Energy,USA
 PSX,Phillips 66,USA
 GLW,Corning,USA
-CABK.MC,CaixaBank,Spain
 AEM,Agnico Eagle Mines,Canada
-EQNR.OL,Equinor,Norway
 CEG,Constellation Energy,USA
 REGN,Regeneron Pharmaceuticals,USA
-ING.AS,ING,Netherlands
 USB,U.S. Bancorp,USA
 BN,Brookfield Corporation,Canada
 UPS,United Parcel Service,USA
@@ -298,9 +262,7 @@ JCI,Johnson Controls,Ireland
 BAM,Brookfield Asset Management,Canada
 WMB,Williams Companies,USA
 MDLZ,Mondelez International,USA
-NGG.L,National Grid,UK
 HLT,Hilton Worldwide,USA
-ATCOB.ST,Atlas Copco,Sweden
 TRV,The Travelers Companies,USA
 NTES,NetEase,China
 ITW,Illinois Tool Works,USA
@@ -309,9 +271,7 @@ ITUB,Itaú Unibanco,Brazil
 MUV2.DE,Munich RE (Münchener Rück),Germany
 EPD,Enterprise Products,USA
 CI,The Cigna Group,USA
-GLCNF.SW,Glencore,Switzerland
 EOG,EOG Resources,USA
-E.MI,ENI,Italy
 ASX,ASE Group,Taiwan
 SU,Suncor Energy,Canada
 CL,Colgate-Palmolive,USA
@@ -320,73 +280,56 @@ DASH,DoorDash,USA
 WBD,Warner Bros. Discovery,USA
 AMX,America Movil,Mexico
 IFX.DE,Infineon,Germany
-BCS.L,Barclays,UK
 ROST,Ross Stores,USA
 CNI,Canadian National Railway,Canada
 MELI,MercadoLibre,Argentina
 RSG,Republic Services,USA
-G.MI,Generali,Italy
 GM,General Motors,USA
-BA.L,BAE Systems,UK
 FDX,FedEx,USA
 VRT,Vertiv Holdings,USA
 DHL.DE,DHL Group (Deutsche Post),Germany
 NSC,Norfolk Southern,USA
-LYG.L,Lloyds Banking Group,UK
 SLB,SLB (Schlumberger),USA
 TGT,Target,USA
 MRK.DE,Merck KGaA,Germany
 HOOD,Robinhood,USA
 MFC,Manulife Financial,Canada
-RACE.MI,Ferrari,Italy
 AJG,Arthur J. Gallagher & Co.,USA
 APO,Apollo Global Management,USA
 HON,Honeywell,USA
 ORLY,O'Reilly Automotive,USA
-AON.L,Aon,UK
 DG.PA,Vinci,France
 ENGI.PA,ENGIE,France
 DLR,Digital Realty,USA
 AEP,American Electric Power,USA
 APD,Air Products and Chemicals,USA
 KMI,Kinder Morgan,USA
-RELX.L,RELX,UK
 GWW,W. W. Grainger,USA
-DB.DE,Deutsche Bank,Germany
 URI,United Rentals,USA
 KMB,Kimberly-Clark,USA
 TDG,TransDigm Group,USA
 ET,Energy Transfer LP,USA
 TAK,Takeda Pharmaceutical,Japan
-VOLVA.ST,Volvo Group,Sweden
 COR,Cencora,USA
 MPWR,Monolithic Power Systems,USA
 TRP,TC Energy,Canada
-NXPI.AS,NXP Semiconductors,Netherlands
 BSX,Boston Scientific,USA
 DB1.DE,Deutsche Börse,Germany
-NDAFI.HE,Nordea Bank,Finland
 B,Barrick Gold,Canada
 ALL,Allstate,USA
 CRH,Cement Roadstone Holding,Ireland
 DDOG,Datadog,USA
 MET,MetLife,USA
 CAH,Cardinal Health,USA
-STAN.L,Standard Chartered,UK
 HPE,Hewlett Packard Enterprise,USA
 FAST,Fastenal,USA
 PSA,Public Storage,USA
 AFL,Aflac,USA
-UCB.BR,UCB,Belgium
-NWG.L,NatWest Group,UK
-TEL.SW,TE Connectivity,Switzerland
 BAYN.DE,Bayer,Germany
 CMI,Cummins,USA
 WPM,Wheaton Precious Metals,Canada
 NDAQ,Nasdaq,USA
-ARGX.AS,Argenx,Netherlands
 DAL,Delta Air Lines,USA
-LSEG.L,London Stock Exchange,UK
 TRGP,Targa Resources,USA
 TFC,Truist Financial Corporation,USA
 D,Dominion Energy,USA
@@ -400,11 +343,6 @@ MPLX,MPLX,USA
 NKE,Nike,USA
 OXY,Occidental Petroleum,USA
 O,Realty Income,USA
-DEO.L,Diageo,UK
-CPG.L,Compass Group,UK
-AAL.L,Anglo American,UK
-LONN.SW,Lonza,Switzerland
-GRMN.SW,Garmin,Switzerland
 PCAR,Paccar,USA
 EOAN.DE,E.ON,Germany
 OKE,Oneok,USA
@@ -412,14 +350,11 @@ IDXX,IDEXX Laboratories,USA
 BE,Bloom Energy,USA
 AME,Ametek,USA
 ADSK,Autodesk,USA
-KBCSF.BR,KBC,Belgium
 GLE.PA,Société Générale,France
 EBAY,eBay,USA
 ACA.PA,Crédit Agricole,France
-GALD.SW,Galderma Group,Switzerland
 SHL.DE,Siemens Healthineers,Germany
 MDLN,Medline,USA
-SREN.SW,Swiss Re,Switzerland
 HO.PA,Thales,France
 ETR,Entergy,USA
 LITE,Lumentum,USA
@@ -430,11 +365,9 @@ HEIA.AS,Heineken,Netherlands
 CTVA,Corteva,USA
 AZO,AutoZone,USA
 XYZ,Block,USA
-CCEP.L,Coca-Cola European Partners,UK
 RWE.DE,RWE,Germany
 XEL,Xcel Energy,USA
 LHX,L3Harris Technologies,USA
-DSV.CO,DSV,Denmark
 SRE,Sempra,USA
 MSTR,"Strategy 
  (MicroStrategy)",USA
@@ -442,9 +375,6 @@ KDP,Keurig Dr Pepper,USA
 INFY,Infosys,India
 WAB,Wabtec,USA
 VMRK,Vivmark Residential,USA
-ELE.MC,Endesa,Spain
-HOLN.SW,Holcim Group,Switzerland
-FERG.L,Ferguson Enterprises,UK
 A,Agilent Technologies,USA
 CVE,Cenovus Energy,Canada
 WMMVF,Walmex,Mexico
@@ -455,7 +385,6 @@ TEVA,Teva Pharmaceutical Industries,Israel
 VEEV,Veeva Systems,USA
 MT,ArcelorMittal,Luxembourg
 FNV,Franco-Nevada,Canada
-DNB.OL,DNB,Norway
 VALE,Vale,Brazil
 BN.PA,Danone,France
 F,Ford,USA
@@ -464,17 +393,13 @@ PYPL,PayPal,USA
 ONC,BeOne Medicines,USA
 VYLR,Vylor Inc.,USA
 HEI,HEICO,USA
-AENA.MC,Aena,Spain
-RKT.L,Reckitt Benckiser,UK
 WCN,Waste Connections,USA
 CBK.DE,Commerzbank,Germany
 VTR,Ventas,USA
 MSCI,MSCI,USA
 AU,AngloGold Ashanti,South Africa
 BKR,Baker Hughes,USA
-SWEDA.ST,Swedbank,Sweden
 FMX,Fomento Económico Mexicano (FEMSA),Mexico
-SAND.ST,Sandvik,Sweden
 EXC,Exelon Corporation,USA
 SE,Sea Limited,Singapore
 TRI,Thomson Reuters,Canada
@@ -482,30 +407,18 @@ ROP,Roper Technologies,USA
 P911.DE,Porsche,Germany
 STT,State Street Corporation,USA
 WAT,Waters Corporation,USA
-NOK.HE,Nokia,Finland
 ARES,Ares Management,USA
 ORA.PA,Orange,France
 WDAY,Workday,USA
-TSCO.L,Tesco,UK
 CMG,Chipotle Mexican Grill,USA
-GIVN.SW,Givaudan,Switzerland
 IQV,IQVIA,USA
-PST.MI,Poste Italiane,Italy
 HMC,Honda,Japan
 NTRA,Natera,USA
 AMP,Ameriprise Financial,USA
-DANS.CO,Danske Bank,Denmark
 VST,Vistra,USA
-SCMN.SW,Swisscom,Switzerland
 ED,Consolidated Edison,USA
 ROK,Rockwell Automation,USA
 MBG.DE,Mercedes-Benz,Germany
-SDZ.SW,Sandoz Group,Switzerland
-ANTO.L,Antofagasta,UK
-ASSAB.ST,Assa Abloy,Sweden
-SSE.L,SSE,UK
-FER.MC,Ferrovial,Spain
-SEBA.ST,Skandinaviska Enskilda Banken,Sweden
 CARR,Carrier Global,USA
 RHM.DE,Rheinmetall,Germany
 YUM,Yum! Brands,USA
@@ -513,7 +426,6 @@ ABEV,Ambev,Brazil
 AIG,American International Group,USA
 PRU,Prudential Financial,USA
 COHR,Coherent Corp.,USA
-MAERSKB.CO,Maersk,Denmark
 LYV,Live Nation,USA
 TTWO,Take-Two Interactive,USA
 RVMD,Revolution Medicines,USA
@@ -530,18 +442,12 @@ LR.PA,Legrand,France
 KR,Kroger,USA
 RKLB,Rocket Lab,USA
 WDS,Woodside Energy,Australia
-STM.SW,STMicroelectronics,Switzerland
-RPRX.L,Royalty Pharma,UK
-HLN.L,Haleon,UK
 HNR1.DE,Hannover Rück,Germany
 ASM.AS,ASM International,Netherlands
 HEN3.DE,Henkel,Germany
-EQT.ST,EQT,Sweden
 KB,KB Financial Group,S Korea
 VIK,Viking Holdings,Bermuda
-SCHN.SW,Schindler Group,Switzerland
 UAL,United Airlines Holdings,USA
-BMPS.MI,Banca Monte dei Paschi di Siena,Italy
 FIX,Comfort Systems USA,USA
 CBRE,CBRE Group,USA
 VOW3.DE,Volkswagen,Germany
@@ -550,7 +456,6 @@ CIEN,Ciena,USA
 WEC,WEC Energy Group,USA
 BMW.DE,BMW,Germany
 TER,Teradyne,USA
-PKN.WA,ORLEN,Poland
 JD,JD.com,China
 SYY,Sysco,USA
 CBOE,Cboe Global Markets,USA
@@ -560,29 +465,21 @@ TLX.DE,Talanx,Germany
 GEHC,GE HealthCare Technologies,USA
 ALAB,Astera Labs,USA
 UMC,United Microelectronics,Taiwan
-PKO.WA,PKO Bank Polski,Poland
 TEAM,Atlassian,Australia
-SIKA.SW,Sika,Switzerland
 TKO,TKO Group Holdings,USA
 MLM,Martin Marietta Materials,USA
 BIIB,Biogen,USA
 DSY.PA,Dassault Systèmes,France
-PRY.MI,Prysmian Group,Italy
 PEG,PSEG,USA
 KVUE,Kenvue,USA
 BSBR,Banco Santander Brasil,Brazil
 VMC,Vulcan Materials,USA
 HIG,The Hartford,USA
 RBLX,Roblox,USA
-NBIS.AS,Nebius Group,Netherlands
 DTG.DE,Daimler Truck,Germany
-VOD.L,Vodafone,UK
-ALC.SW,Alcon,Switzerland
 HEI.DE,HeidelbergCement,Germany
 QSR,Restaurant Brands International,Canada
 ACGL,Arch Capital,Bermuda
-REP.MC,Repsol,Spain
-SAABB.ST,SAAB AB,Sweden
 IX,ORIX,Japan
 EXPGF,Experian,Ireland
 COIN,Coinbase,USA
@@ -594,8 +491,6 @@ ESLT,Elbit Systems,Israel
 EXR,Extra Space Storage,USA
 ODFL,Old Dominion Freight Line,USA
 NTAP,NetApp,USA
-ERIC.ST,Ericsson,Sweden
-III.L,3i Group,UK
 UMG.AS,Universal Music Group,Netherlands
 NTR,Nutrien,Canada
 AD.AS,Ahold Delhaize,Netherlands
@@ -606,19 +501,12 @@ FISV,Fiserv,USA
 STLD,Steel Dynamics,USA
 ZTS,Zoetis,USA
 FRE.DE,Fresenius,Germany
-KNEBV.HE,KONE,Finland
 SUNB,Sunbelt Rentals,USA
-GMAB.CO,Genmab,Denmark
-KOG.OL,Kongsberg Gruppen,Norway
 TWLO,Twilio,USA
-SHBA.ST,Svenska Handelsbanken,Sweden
 IRM,Iron Mountain,USA
 ADM,Archer Daniels Midland (ADM),USA
 IR,Ingersoll Rand,Ireland
-KNIN.SW,Kühne + Nagel,Switzerland
-LDO.MI,Leonardo,Italy
 RMD,ResMed,USA
-SLHN.SW,Swiss Life,Switzerland
 MCHP,Microchip Technology,USA
 MLYBY,Maybank,Malaysia
 EQT,EQT Corporation,USA
@@ -631,21 +519,15 @@ ZS,Zscaler,USA
 CCJ,Cameco,Canada
 RYAAY,Ryanair,Ireland
 MTB,M&T Bank,USA
-PUK.L,Prudential,UK
 AEE,Ameren,USA
 EC,Ecopetrol,Colombia
-BPE.MI,BPER Banca,Italy
-NZYM.CO,Novonesis,Denmark
 BIP,Brookfield Infrastructure Partners,Bermuda
 OKTA,Okta,USA
 HOT.DE,Hochtief,Germany
-NTGY.MC,Naturgy,Spain
 TECK,Teck Resources,Canada
-EPIA.ST,Epiroc,Sweden
 WSM,Williams-Sonoma,USA
 FTS,Fortis,Canada
 ADYEN.AS,Adyen,Netherlands
-WTW.L,Willis Towers Watson,UK
 TS,Tenaris,Luxembourg
 ECHO,EchoStar,USA
 DG,Dollar General,USA
@@ -655,29 +537,20 @@ VG,Venture Global,USA
 TDY,Teledyne Technologies,USA
 AWK,American Water,USA
 CPRT,Copart,USA
-ROIV.L,Roivant Sciences,UK
 DXCM,DexCom,USA
 OTIS,Otis Worldwide,USA
-PHG.AS,Philips,Netherlands
 ATO,Atmos Energy,USA
 SHG,Shinhan Financial Group,S Korea
 CPAY,Corpay,USA
-HEXAB.ST,Hexagon AB,Sweden
 CPNG,Coupang,USA
 BAP,Credicorp,Bermuda
-AV.L,Aviva,UK
-SAMPO.HE,Sampo,Finland
 CINF,Cincinnati Financial,USA
 CQP,"Cheniere Energy
 Partners",USA
 PCG,PG&E Corporation,USA
 PUB.PA,Publicis Groupe,France
 CTSH,Cognizant Technology Solutions,USA
-AMS.MC,Amadeus IT Group,Spain
-IMB.L,Imperial Brands,UK
 DTE,DTE Energy,USA
-DSFIR.SW,DSM-Firmenich,Switzerland
-ORSTED.CO,Ørsted,Denmark
 VLTO,Veralto,USA
 WST,West Pharmaceutical Services,USA
 BBD,Banco Bradesco,Brazil
@@ -685,16 +558,13 @@ KHC,Kraft Heinz,USA
 WRB,W. R. Berkley,USA
 DGX,Quest Diagnostics,USA
 PBA,Pembina Pipeline,Canada
-HMB.ST,H&M,Sweden
 ULTA,ULTA Beauty,USA
-BTA.L,BT Group,UK
 EME,Emcor,USA
 CLS,Celestica,Canada
 VIE.PA,Veolia,France
 DOV,Dover Corporation,USA
 FLEX,Flex,Singapore
 TW,Tradeweb,USA
-VWS.CO,Vestas Wind Systems,Denmark
 VRSN,VeriSign,USA
 NMR,Nomura Holdings,Japan
 TCOM,Trip.com,China
@@ -704,9 +574,7 @@ PPG,PPG Industries,USA
 CNP,CenterPoint Energy,USA
 CFG,Citizens Financial Group,USA
 BIDU,Baidu,China
-BSP.MI,Bending Spoons,Italy
 ON,ON Semiconductor,USA
-HBAN.SW,Helvetia Baloise Holding AG,Switzerland
 FE,FirstEnergy,USA
 PPL,PPL,USA
 GPN,Global Payments,USA
@@ -715,20 +583,17 @@ AER,AerCap,Ireland
 MDB,MongoDB,USA
 TPR,Tapestry,USA
 EXO.AS,Exor,Netherlands
-ACS.MC,Grupo ACS,Spain
 ZM,Zoom,USA
 AM.PA,Dassault Aviation,France
 LVS,Las Vegas Sands,USA
 DLTR,Dollar Tree,USA
 CHD,Church & Dwight,USA
-IHG.L,InterContinental Hotels Group,UK
 ML.PA,Michelin,France
 HAL,Halliburton,USA
 ES,Eversource Energy,USA
 INSM,Insmed,USA
 VRSK,Verisk Analytics,USA
 KER.PA,Kering,France
-BABWF.MC,International Consolidated Airlines,Spain
 DRI,Darden Restaurants,USA
 Q,Qnity Electronics,USA
 CASY,Casey's General Stores,USA
@@ -742,18 +607,14 @@ KGC,Kinross Gold,Canada
 KOF,Coca-Cola FEMSA,Mexico
 HLAG.DE,Hapag-Lloyd,Germany
 FNLPF,Fresnillo,Mexico
-FTI.L,TechnipFMC,UK
 UTHR,United Therapeutics,USA
 STE,Steris,Ireland
 PHM,PulteGroup,USA
-MB.MI,Mediobanca,Italy
 ATI,ATI Inc.,USA
-BAMI.MI,Banco BPM,Italy
 AXON,Axon Enterprise,USA
 PFG,Principal Financial Group,USA
 STZ,Constellation Brands,USA
 INCY,Incyte,USA
-SGSN.SW,SGS,Switzerland
 EXPD,Expeditors International,USA
 CRDO,Credo Technology,USA
 OMC,Omnicom Group,USA
@@ -764,49 +625,34 @@ LPLA,LPL Financial,USA
 CHTR,Charter Communications,USA
 ROKU,Roku,USA
 VTRS,Viatris,USA
-INDUA.ST,Industrivarden,Sweden
-EMSN.SW,Ems-Chemie,Switzerland
 BRO,Brown & Brown,USA
-NXT.L,Next plc,UK
 EBK.DE,EnBW Energie,Germany
-LISP.SW,Chocoladefabriken Lindt & Sprüngli,Switzerland
 TROW,T. Rowe Price,USA
 RL,Ralph Lauren,USA
 USFD,US Foods,USA
-FORTUM.HE,Fortum,Finland
-NESTE.HE,Neste,Finland
 NN.AS,NN Group,Netherlands
 SYF,Synchrony Financial,USA
-SRG.MI,Snam,Italy
 SW,Smurfit Westrock,Ireland
 RGLD,Royal Gold,USA
-GEBN.SW,Geberit,Switzerland
 EIX,Edison International,USA
 HUBB,Hubbell,USA
 THC,Tenet Healthcare,USA
-EDP.LS,EDP Group,Portugal
 DOW,Dow,USA
 SYM,Symbotic,USA
 LUV,Southwest Airlines,USA
 CAP.PA,Capgemini,France
 PKG,Packaging Corporation of America,USA
 GFS,GlobalFoundries,USA
-ALFA.ST,Alfa Laval,Sweden
 KEY,KeyCorp (KeyBank),USA
 RBRK,Rubrik,USA
 L,Loews Corporation,USA
 AFRM,Affirm,USA
 U,Unity Software,USA
-AMRZ.SW,Amrize,Switzerland
 CBRS,Cerebras Systems,USA
 XYL,Xylem,USA
 AMUN.PA,Amundi,France
 EFX,Equifax,USA
-LGEN.L,Legal & General,UK
-TEF.MC,Telefónica,Spain
 XPO,XPO Logistics,USA
-TRN.MI,Terna,Italy
-UNI.MI,Unipol Assicurazioni,Italy
 ARXS,"Arxis, Inc.",USA
 CMS,CMS Energy,USA
 BBY,Best Buy,USA
@@ -815,61 +661,44 @@ WKL.AS,Wolters Kluwer,Netherlands
 RS,Reliance,USA
 NI,NiSource,USA
 MTX.DE,MTU Aero Engines,Germany
-AKRBP.OL,Aker BP,Norway
-BNTX.DE,BioNTech,Germany
 CIB,Grupo Cibest (Bancolombia),Colombia
 WIT,Wipro,India
 PTC,PTC,USA
 SOFI,SoFi,USA
-PGHN.SW,Partners Group,Switzerland
 TSN,Tyson Foods,USA
 ENTG,Entegris,USA
 CDW,CDW Corporation,USA
 JBHT,J. B. Hunt,USA
 GH,Guardant Health,USA
 VNOM,Viper Energy,USA
-AMCR.SW,Amcor,Switzerland
 IFF,International Flavors & Fragrances,USA
 DD,Dupont De Nemours,USA
-EBP.WA,Erste Bank Polska,Poland
 EVRG,Evergy,USA
 UN0.DE,Uniper,Germany
 BEI.DE,Beiersdorf,Germany
 LEN,Lennar,USA
 BEP,Brookfield Renewable Partners,Bermuda
-STMN.SW,Straumann,Switzerland
-CCH.SW,Coca-Cola HBC,Switzerland
 NRG,NRG Energy,USA
 ZBH,Zimmer Biomet,USA
 EXE,Expand Energy,USA
 ALNY,Alnylam Pharmaceuticals,USA
-SOON.SW,Sonova,Switzerland
 RI.PA,Pernod Ricard,France
 BCE,BCE Inc.,Canada
 FTV,Fortive,USA
-VACN.SW,VAT Group,Switzerland
 TOST,Toast,USA
-CARLB.CO,Carlsberg,Denmark
 RIVN,Rivian,USA
 SBAC,SBA Communications,USA
 BEKE,KE Holdings,China
 BCH,Banco de Chile,Chile
 WWD,Woodward,USA
-CNH.L,CNH Industrial,UK
-SAB.MC,Banco Sabadell,Spain
-ESSITYB.ST,Essity,Sweden
-TEL.OL,Telenor,Norway
 LYB,LyondellBasell,USA
 8TRA.DE,Traton,Germany
-CLNX.MC,Cellnex Telecom,Spain
 FSLR,First Solar,USA
 SWKS,Skyworks Solutions,USA
 TSCO,Tractor Supply,USA
 FDXF,FedEx Freight,USA
-TELIA.ST,Telia Company,Sweden
 ITT,ITT,USA
 SNA,Snap-on,USA
-BMED.MI,Banca Mediolanum,Italy
 FTAI,FTAI Aviation,USA
 BG,Bunge Global SA,USA
 RDDT,Reddit,USA
@@ -879,36 +708,26 @@ TPL,Texas Pacific Land Corporation,USA
 TNABY,Tenaga Nasional,Malaysia
 EN.PA,Bouygues,France
 TPG,TPG Inc.,USA
-ABF.L,Associated British Foods,UK
-AGS.BR,ageas,Belgium
 VIV,Telefonica Brasil,Brazil
 IP,International Paper,USA
 BEN,Franklin Resources,USA
 MEDP,Medpace,USA
-BCP.LS,Banco Comercial Português (Millennium bcp),Portugal
-MBK.WA,mBank,Poland
 SNX,TD Synnex,USA
-AS.HE,Amer Sports,Finland
 KPN.AS,KPN,Netherlands
 GIS,General Mills,USA
 SSNC,SS&C Technologies,USA
 ROL,Rollins,USA
-ENX.AS,Euronext,Netherlands
 J,Jacobs Engineering,USA
 SMCI,Supermicro,USA
 RCI,Rogers Communications,Canada
 PR,Permian Resources,USA
-PEO.WA,Bank Pekao (Bank Polska Kasa Opieki),Poland
-NVT.L,nVent Electric,UK
 APG,APi Group,USA
 NDSN,Nordson,USA
 FFIV,F5,USA
 HST,Host Hotels & Resorts,USA
 EWBC,East West Bancorp,USA
-HLMA.L,Halma,UK
 CF,CF Industries,USA
 H,Hyatt Hotels,USA
-BAER.SW,Julius Bär,Switzerland
 ASRNL.AS,ASR Nederland,Netherlands
 RGA,Reinsurance Group of America,USA
 GEN,Gen Digital,USA
@@ -920,7 +739,6 @@ PFGC,Performance Food Group,USA
 RBA,RB Global,Canada
 IEX,IDEX,USA
 BALL,Ball Corporation,USA
-WRT1V.HE,Wärtsilä,Finland
 CW,Curtiss-Wright,USA
 SWK,Stanley Black & Decker,USA
 MTSI,MACOM Technology Solutions,USA
@@ -933,39 +751,28 @@ SBS,Sabesp,Brazil
 KIM,Kimco Realty,USA
 HAS,Hasbro,USA
 WES,Western Midstream,USA
-TPRO.MI,Technoprobe,Italy
-SOBI.ST,Swedish Orphan Biovitrum,Sweden
 JHX,James Hardie Industries,Ireland
-ASND.CO,Ascendis Pharma,Denmark
 WF,Woori Financial Group,S Korea
 TYL,Tyler Technologies,USA
 PAA,Plains All American Pipeline,USA
 TSEM,Tower Semiconductor,Israel
 LDOS,Leidos,USA
-SGRO.L,SEGRO,UK
 DINO,HF Sinclair,USA
 YUMC,Yum China,China
 CRCL,Circle Internet Group,USA
 WMG,Warner Music Group,USA
 CON.DE,Continental,Germany
-PZU.WA,Powszechny Zakład Ubezpieczeń,Poland
 LAMR,Lamar Advertising,USA
 CRL,Charles River Laboratories,USA
-EDPR.MC,EDP Renováveis,Spain
 OVV,Ovintiv,USA
-COLOB.CO,Coloplast,Denmark
 ULS,UL Solutions,USA
 PAAS,Pan American Silver,Canada
-ELI.BR,Elia Group,Belgium
 MAS,Masco,USA
 IONQ,IonQ,USA
-METSO.HE,Metso,Finland
 VNA.DE,Vonovia,Germany
 NTNX,Nutanix,USA
 ALLE,Allegion,Ireland
 OWL,Blue Owl Capital,USA
-ORNAV.HE,Orion Corporation,Finland
-ING.WA,ING Bank Slaski,Poland
 NWS,News Corp,USA
 HTHT,H World Group Limited,China
 NVR,NVR,USA
@@ -976,20 +783,15 @@ AIZ,Assurant,USA
 JAZZ,Jazz Pharmaceuticals,Ireland
 CRBG,Corebridge Financial,USA
 TLN,Talen Energy,USA
-ALE.WA,Allegro.eu,Poland
-INF.L,Informa plc,UK
 INVH,Invitation Homes,USA
 EG,Everest Group,Bermuda
 TRU,TransUnion,USA
 CDE,Coeur Mining,USA
 FICO,Fair Isaac (FICO),USA
-FBK.MI,FinecoBank,Italy
 CX,Cemex,Mexico
-ADM.L,Admiral Group,UK
 SQM,Sociedad Química y Minera,Chile
 RBC,RBC Bearings,USA
 PNFP,Pinnacle Financial Partners,USA
-EVO.ST,Evolution Gaming,Sweden
 DWS.DE,DWS Group,Germany
 OHI,Omega Healthcare Investors,USA
 WCC,WESCO International,USA
@@ -997,9 +799,7 @@ LECO,Lincoln Electric,USA
 W,Wayfair,USA
 IPN.PA,Ipsen,France
 ICLR,ICON plc,Ireland
-LUNDB.ST,Lundbergföretagen,Sweden
 BBIO,BridgeBio Pharma,USA
-UU.L,United Utilities,UK
 SOLV,Solventum,USA
 GFL,GFL Environmental,Canada
 ZTO,ZTO Express,China
@@ -1009,43 +809,32 @@ CSL,Carlisle Companies,USA
 BSAC,Banco Santander-Chile,Chile
 NXT,Nextpower,USA
 TME,Tencent Music Entertainment,China
-GZ5.LS,Galp Energia,Portugal
 APA,APA Corporation,USA
 ZBRA,Zebra Technologies,USA
-BOL.ST,Boliden,Sweden
 WPC,W. P. Carey,USA
 DIDIY,DiDi,China
 PKX,POSCO,S Korea
 CHRW,C. H. Robinson,USA
 MANH,Manhattan Associates,USA
-LATOB.ST,Investment AB Latour,Sweden
-BKT.MC,Bankinter,Spain
 TIGO,Millicom,Luxembourg
 BVI.PA,Bureau Veritas,France
 WY,Weyerhaeuser,USA
-KGH.WA,KGHM Polska Miedź,Poland
 DOC,Healthpeak Properties,USA
 EQH,Equitable Holdings,USA
 SUI,Sun Communities,USA
-NHY.OL,Norsk Hydro,Norway
 CHKP,Check Point Software,Israel
 CG,Carlyle Group,USA
 NLY,Annaly Capital Management,USA
 CRS,Carpenter Technology,USA
-GJF.OL,Gjensidige Forsikring,Norway
 TXT,Textron,USA
 TEM,Tempus AI,USA
 EMBJ,Embraer,Brazil
-MAP.MC,Mapfre,Spain
-TRYG.CO,Tryg,Denmark
 YPF,YPF S.A.,Argentina
 FIS,Fidelity National Information Services,USA
-BFA,Brown Forman,USA
 MTZ,MasTec,USA
 DOCU,DocuSign,USA
 SY1.DE,Symrise,Germany
 SGI,Somnigroup International,USA
-BCVN.SW,Banque Cantonale Vaudoise,Switzerland
 MKSI,MKS Instruments,USA
 BTSG,BrightSpring Health Services,USA
 KEP,Korea Electric Power,S Korea
@@ -1058,8 +847,5 @@ ARMK,Aramark,USA
 AVY,Avery Dennison,USA
 SJM,J.M. Smucker Company,USA
 COKE,Coca-Cola Consolidated,USA
-SMMT.L,Summit Therapeutics,UK
 LTM,LATAM Airlines,Chile
 QXO,"QXO, Inc.",USA
-
-
