@@ -16,6 +16,7 @@ import numpy as np
 import yaml
 
 import indicators
+from notifier import TelegramNotifier
 
 logger = logging.getLogger(__name__)
 
@@ -241,9 +242,10 @@ class ETFScanner:
         )
         c2_level = bool(bb_touched or fibo_in_zone)
 
+        currency = TelegramNotifier.detect_currency(ticker)
         bb_status = "Dotknięcie dolnej wstęgi (Wsparcie)" if bb_touched else "Wewnątrz wstęg"
         if fibo_in_zone and fibo_target_price is not None:
-            fibo_status = f"Strefa {fibo_level_key} (~{fibo_target_price:.2f} EUR)"
+            fibo_status = f"Strefa {fibo_level_key} (~{fibo_target_price:.2f} {currency})"
         else:
             fibo_status = "Brak kluczowego wsparcia Fibo"
 
@@ -334,17 +336,43 @@ class ETFScanner:
         rr_tp2 = (reward_tp2 / risk) if risk > 0 else 0.0
         rr_ratio = round(rr_tp2, 2)
 
+        # 6. TREND (SMA 200), ATR(14) ORAZ OSTRZEŻENIE O DUŻEJ ŚWIECY
+        sma_200 = float(curr['SMA_200']) if 'SMA_200' in curr and not np.isnan(curr['SMA_200']) else None
+        if sma_200 is not None:
+            is_uptrend = bool(close_curr > sma_200)
+            trend_status = "✅ HOSSA (powyżej SMA200)" if is_uptrend else "⚠️ BESSA (poniżej SMA200)"
+        else:
+            is_uptrend = None
+            trend_status = "ℹ️ BRAK DANYCH (<200 sesji)"
+
+        candle_body_pct = ((close_curr - open_curr) / open_curr) * 100.0 if open_curr > 0 else 0.0
+        large_candle_pct = max(change_pct, candle_body_pct)
+        is_large_candle = bool(large_candle_pct > 3.5)
+
+        atr_val = float(curr['ATR_14']) if 'ATR_14' in curr and not np.isnan(curr['ATR_14']) else float((df['High'] - df['Low']).tail(14).mean())
+        atr_sl_price = round(max(0.01, close_curr - (2.0 * atr_val)), 2)
+        atr_sl_pct = round(((close_curr - atr_sl_price) / close_curr) * 100.0, 2) if close_curr > 0 else 0.0
+
         logger.info(
-            "🎯 [%s] ZNALEZIONO SETUP KONFLUENCJI (Score: %d/5)! Close=%.2f, SL=%.2f (-%.2f%%), TP1=%.2f (+%.2f%%), TP2=%.2f (+%.2f%%), R:R=1:%.2f",
-            ticker, score, close_curr, sl_price, sl_pct, tp1_price, tp1_pct, tp2_price, tp2_pct, rr_ratio
+            "🎯 [%s] ZNALEZIONO SETUP KONFLUENCJI (Score: %d/5)! Close=%.2f %s, SL=%.2f (-%.2f%%), TP1=%.2f (+%.2f%%), TP2=%.2f (+%.2f%%), R:R=1:%.2f",
+            ticker, score, close_curr, currency, sl_price, sl_pct, tp1_price, tp1_pct, tp2_price, tp2_pct, rr_ratio
         )
 
         return {
             "ticker": ticker,
             "name": name,
             "sector": sector,
+            "currency": currency,
             "close": close_curr,
             "change_pct": change_pct,
+            "trend_status": trend_status,
+            "is_uptrend": is_uptrend,
+            "sma_200": sma_200,
+            "is_large_candle": is_large_candle,
+            "large_candle_pct": round(large_candle_pct, 2),
+            "atr_val": round(atr_val, 2),
+            "atr_sl_price": atr_sl_price,
+            "atr_sl_pct": atr_sl_pct,
             "rsi_val": rsi_val,
             "rsi_status": rsi_status,
             "fibo_status": fibo_status,
