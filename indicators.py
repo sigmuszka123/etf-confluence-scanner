@@ -232,10 +232,25 @@ def is_in_fibo_support_zone(
     return False, None, None
 
 
+def calculate_atr(df: pd.DataFrame, window: int = 14) -> pd.Series:
+    """
+    Oblicza Average True Range (ATR 14) według formuły Wildera.
+    """
+    high = df['High']
+    low = df['Low']
+    prev_close = df['Close'].shift(1)
+    tr = pd.concat([
+        high - low,
+        (high - prev_close).abs(),
+        (low - prev_close).abs()
+    ], axis=1).max(axis=1)
+    return tr.ewm(alpha=1.0 / window, min_periods=window, adjust=False).mean()
+
+
 def calculate_all_indicators(df: pd.DataFrame, config: Dict[str, Any]) -> pd.DataFrame:
     """
     Kalkuluje kompletny zestaw wskaźników technicznych dla danego DataFrame (OHLCV).
-    Dodaje kolumny in-place / zwraca wzbogacony DataFrame.
+    Dodaje kolumny in-place / zwraca wzbogony DataFrame.
     """
     cfg_ind = config.get("indicators", {})
     bb_cfg = cfg_ind.get("bollinger_bands", {"window": 20, "num_std": 2.0})
@@ -243,6 +258,7 @@ def calculate_all_indicators(df: pd.DataFrame, config: Dict[str, Any]) -> pd.Dat
     macd_cfg = cfg_ind.get("macd", {"fast": 12, "slow": 26, "signal": 9})
     ma_cfg = cfg_ind.get("moving_averages", {"ema_short": 9, "sma_medium": 20, "sma_long": 200})
     rvol_cfg = cfg_ind.get("rvol", {"window": 20})
+    atr_cfg = cfg_ind.get("atr", {"window": 14})
 
     out = df.copy()
 
@@ -279,5 +295,8 @@ def calculate_all_indicators(df: pd.DataFrame, config: Dict[str, Any]) -> pd.Dat
     rvol, sma_vol = calculate_rvol(out['Volume'], window=rvol_cfg.get("window", 20))
     out['RVol'] = rvol
     out['SMA_Volume_20'] = sma_vol
+
+    # 6. ATR (14)
+    out['ATR_14'] = calculate_atr(out, window=atr_cfg.get("window", 14))
 
     return out
