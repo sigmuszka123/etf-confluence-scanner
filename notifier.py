@@ -101,20 +101,55 @@ class TelegramNotifier:
         return False
 
     @staticmethod
+    def detect_currency(ticker: str) -> str:
+        """Wykrywa walutę notowania na podstawie sufiksu giełdowego tickera."""
+        t = str(ticker).strip().upper()
+        if "." not in t:
+            return "USD"
+        if t.endswith(".L"):
+            return "GBp"
+        if t.endswith((".DE", ".PA", ".AS", ".MI", ".MC", ".BR", ".HE", ".LS")):
+            return "EUR"
+        if t.endswith(".SW"):
+            return "CHF"
+        if t.endswith(".ST"):
+            return "SEK"
+        if t.endswith(".CO"):
+            return "DKK"
+        if t.endswith(".WA"):
+            return "PLN"
+        return "USD"
+
+    @staticmethod
     def format_alert_message(setup: Dict[str, Any]) -> str:
         """
         Formatuje dane zidentyfikowanego setupu konfluencji zgodnie ze ścisłą specyfikacją.
         """
+        currency = setup.get("currency") or TelegramNotifier.detect_currency(setup["ticker"])
+        trend_status = setup.get("trend_status", "Brak danych (SMA200)")
+
         # Sprawdzenie czy R:R do TP1 < 1.0 w celu dodania ostrzeżenia
         rr_tp1 = setup.get("rr_tp1", 0.0)
-        risk_warning = ""
+        warnings = ""
         if rr_tp1 < 1.0:
-            risk_warning = f"\n⚠️ *Uwaga: Stosunek R:R do TP1 wynosi {rr_tp1:.2f} (< 1.0) – podwyższone ryzyko dla pierwszego celu.*"
+            warnings += f"\n⚠️ *Uwaga: Stosunek R:R do TP1 wynosi {rr_tp1:.2f} (< 1.0) – podwyższone ryzyko dla pierwszego celu.*"
+
+        if setup.get("is_large_candle"):
+            large_pct = setup.get("large_candle_pct", setup.get("change_pct", 0.0))
+            warnings += f"\n⚠️ Uwaga: Duża świeca (+{large_pct:.2f}%) – wysokie ryzyko cofnięcia na otwarciu i szerokiego SL"
+
+        atr_val = setup.get("atr_val")
+        atr_sl_price = setup.get("atr_sl_price")
+        atr_sl_pct = setup.get("atr_sl_pct")
+        atr_line = ""
+        if atr_val is not None and atr_sl_price is not None and atr_sl_pct is not None:
+            atr_line = f"• **Zmienność (ATR 14):** {atr_val:.2f} | **Bezpieczny SL (2xATR):** {atr_sl_price:.2f} (-{atr_sl_pct:.2f}%)\n"
 
         msg = (
             f"🚨 **WYKRYTO SETUP KONFLUENCJI: {setup['ticker']} ({setup['name']})** 🚨\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"📈 **Cena:** {setup['close']:.2f} EUR | **Zmiana 1D:** {setup['change_pct']:+.2f}%\n"
+            f"📈 **Cena:** {setup['close']:.2f} {currency} | **Zmiana 1D:** {setup['change_pct']:+.2f}%\n"
+            f"📈 **Trend (SMA 200):** {trend_status}\n"
             f"📊 **Odczyty wskaźników:**\n"
             f"• **RSI (14):** {setup['rsi_val']:.1f} (Status: {setup['rsi_status']})\n"
             f"• **Poziom Fibo:** {setup['fibo_status']}\n"
@@ -126,11 +161,12 @@ class TelegramNotifier:
             f"🎯 **Parametry zlecenia (Risk Management):**\n"
             f"• **Sugerowane wejście:** ~{setup['close']:.2f}\n"
             f"• **Twardy Stop Loss:** {setup['sl_price']:.2f} (-{setup['sl_pct']:.2f}%)\n"
+            f"{atr_line}"
             f"• **Take Profit 1:** {setup['tp1_price']:.2f} (+{setup['tp1_pct']:.2f}%)\n"
             f"• **Take Profit 2:** {setup['tp2_price']:.2f} (+{setup['tp2_pct']:.2f}%)\n"
             f"• **Stosunek R:R (do TP2):** 1 : {setup['rr_ratio']:.2f}\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
             f"*Zanegowanie tezy następuje po zamknięciu świecy poniżej SL.*"
-            f"{risk_warning}"
+            f"{warnings}"
         )
         return msg
