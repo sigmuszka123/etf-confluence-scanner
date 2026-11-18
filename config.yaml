@@ -43,7 +43,7 @@ indicators:
 
 # Matryca konfluencji (Scoring)
 scoring:
-  min_criteria_required: 3    # Wymagane minimum 3 z 5 kryteriów
+  min_criteria_required: 4    # Wymagane minimum 3 z 5 kryteriów
 
 # Zarządzanie ryzykiem (Risk Management)
 risk_management:
