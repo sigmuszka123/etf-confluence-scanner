@@ -3,14 +3,14 @@ ETF Confluence Scanner - scanner.py
 Główny moduł silnika skanera:
 1. Wczytywanie bazy tickerów.
 2. Pobieranie danych paczkami (Batch Download via yfinance) z obsługą błędów.
-3. Filtracja płynności (SMA 20 Volume >= 5 000).
-4. Wyliczanie wskaźników i ewaluacja Matrycy Konfluencji (minimum 3 z 5 kryteriów).
-5. Moduł Kalkulatora Ryzyka (Entry, Stop Loss, TP1, TP2, R:R).
+3. Filtracja płynności (SMA 20 Volume >= 50 000 oraz Dollar Volume >= 1 000 000).
+4. Wyliczanie wskaźników i ewaluacja Matrycy Konfluencji (minimum 3-4 z 5 kryteriów).
+5. Moduł Kalkulatora Ryzyka i Twardych Filtrów Strukturalnych (Entry, Stop Loss, TP1, TP2, R:R).
 """
 
 import os
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 import pandas as pd
 import numpy as np
 import yaml
@@ -31,7 +31,7 @@ except ImportError:
 
 class ETFScanner:
     """
-    Skaner rynku ETF wyszukujący setupy konfluencji Price Action + Wskaźniki.
+    Skaner rynku ETF/Stock wyszukujący setupy konfluencji Price Action + Wskaźniki.
     """
 
     def __init__(self, config_path: str = "config.yaml"):
@@ -86,14 +86,13 @@ class ETFScanner:
             logger.error("Biblioteka yfinance jest niedostępna. Nie można pobrać danych rynkowych.")
             return {}
 
-        period = self.config.get("data", {}).get("period", "180d")
+        period = self.config.get("data", {}).get("period", "400d")
         interval = self.config.get("data", {}).get("interval", "1d")
 
         logger.info("Rozpoczynanie pobierania danych zbiorczych dla %d tickerów (period=%s, interval=%s)...",
                     len(tickers), period, interval)
 
         try:
-            # yf.download z parametrem group_by="ticker"
             batch_df = yf.download(
                 tickers=tickers,
                 period=period,
@@ -112,7 +111,6 @@ class ETFScanner:
             logger.warning("yf.download zwróciło pusty zbiór danych.")
             return result
 
-        # Parsowanie struktury kolumn (MultiIndex vs pojedynczy ticker)
         for ticker in tickers:
             ticker_df = self._extract_single_ticker_df(batch_df, ticker)
             if ticker_df is not None and not ticker_df.empty:
@@ -136,16 +134,13 @@ class ETFScanner:
                 else:
                     return None
             else:
-                # Tylko jeden ticker był pobrany
                 df_t = batch_df.copy()
 
-            # Normalizacja kolumn do wielkich liter
             df_t.columns = [str(c).capitalize() for c in df_t.columns]
             required = ['Open', 'High', 'Low', 'Close', 'Volume']
             if not all(col in df_t.columns for col in required):
                 return None
 
-            # Usunięcie wierszy z brakującymi cenami Close
             df_t = df_t.dropna(subset=['Close'])
             if len(df_t) < 20:
                 return None
@@ -165,12 +160,14 @@ class ETFScanner:
     ) -> Optional[Dict[str, Any]]:
         """
         Analizuje pojedynczy instrument:
-        1. Weryfikuje filtr płynności (SMA 20 Volume >= 5 000).
+        1. Weryfikuje filtr płynności (SMA 20 Volume oraz Dollar Volume).
         2. Wylicza wskaźniki techniczne i geometrie Fibonacciego.
         3. Weryfikuje 5 kryteriów konfluencji.
-        4. Jeżeli spełnione >= 3 kryteria, oblicza parametry Risk Management.
+        4. Jeżeli spełnione kryteria, nakłada Twarde Filtry Ryzyka (SL%, Anti-Chasing, R:R).
         """
-        min_vol_sma = self.config.get("liquidity_filter", {}).get("min_volume_sma_20", 5000)
+        liq_cfg = self.config.get("liquidity_filter", {})
+        min_vol_sma = liq_cfg.get("min_volume_sma_20", 5000)
+        min_dollar_vol = liq_cfg.get("min_dollar_volume", 1000000)
 
         # 1. FILTR PŁYNNOŚCI
         vol_series = df['Volume']
@@ -185,9 +182,13 @@ class ETFScanner:
                 ticker, 0 if np.isnan(sma_vol_20) else sma_vol_20, min_vol_sma
             )
             return None
-        min_dollar_vol = self.config.get("liquidity_filter", {}).get("min_dollar_volume", 1000000)
-            dollar_vol_20 = sma_vol_20 * float(df['Close'].iloc[-1])
-            if dollar_vol_20 < min_dollar_vol:
+
+        dollar_vol_20 = sma_vol_20 * float(df['Close'].iloc[-1])
+        if dollar_vol_20 < min_dollar_vol:
+            logger.debug(
+                "[%s] Odrzucono przez filtr obrotu: DollarVol=%.0f < %d.",
+                ticker, dollar_vol_20, min_dollar_vol
+            )
             return None
 
         # 2. KALKULACJA WSKAŹNIKÓW
@@ -224,7 +225,6 @@ class ETFScanner:
         # 3. EWALUACJA 5 KRYTERIÓW MATRYCY KONFLUENCJI
 
         # Kryterium 1: Wyprzedanie
-        # RSI < 35 LUB RSI przecięło 30 od dołu w górę w ciągu ostatnich 2 sesji
         crossed_30_up = (rsi_prev_val < 30.0 and rsi_val >= 30.0) or (rsi_prev2_val < 30.0 and rsi_prev_val >= 30.0)
         c1_oversold = bool((rsi_val < 35.0) or crossed_30_up)
 
@@ -238,7 +238,6 @@ class ETFScanner:
             rsi_status = "Neutralny (>35)"
 
         # Kryterium 2: Poziom / Geometria
-        # Dzisiejsze Low uderzyło w dolną wstęgę Bollingera LUB w strefę Fibo (0.500 / 0.618)
         bb_touched = bool(low_curr <= (bb_lower * 1.002))
         fibo_margin = self.config.get("indicators", {}).get("fibonacci", {}).get("margin_pct", 0.01)
         fibo_in_zone, fibo_level_key, fibo_target_price = indicators.is_in_fibo_support_zone(
@@ -254,7 +253,6 @@ class ETFScanner:
             fibo_status = "Brak kluczowego wsparcia Fibo"
 
         # Kryterium 3: Świecowe (Price Action)
-        # Młot (Pinbar) LUB Objęcie Hossy (Bullish Engulfing)
         is_hammer = indicators.detect_hammer(open_curr, high_curr, low_curr, close_curr)
         is_engulfing = indicators.detect_bullish_engulfing(open_prev, close_prev, open_curr, close_curr)
         c3_candle = bool(is_hammer or is_engulfing)
@@ -269,13 +267,10 @@ class ETFScanner:
             candle_pattern = "Brak formacji odwrócenia"
 
         # Kryterium 4: Wolumen
-        # Wolumen absorpcyjny (RVol >= 1.4x średniej 20-dniowej)
         rvol_threshold = self.config.get("indicators", {}).get("rvol", {}).get("absorption_threshold", 1.4)
         c4_volume = bool(rvol >= rvol_threshold)
 
         # Kryterium 5: Impet (MACD)
-        # Histogram MACD ujemny, ale dzisiejszy słupek jest krótszy od wczorajszego (wygaszanie pędu)
-        # lub histogram wyszedł z ujemnego na dodatni
         c5_momentum = bool((hist_prev < 0 and hist_curr > hist_prev))
 
         if c5_momentum:
@@ -285,7 +280,7 @@ class ETFScanner:
         else:
             macd_status = "Pogłębianie spadków (podaż aktywna)"
 
-        # 4. SCORING KONFLUENCJI (MINIMUM 3 Z 5)
+        # 4. SCORING KONFLUENCJI
         criteria_list = [c1_oversold, c2_level, c3_candle, c4_volume, c5_momentum]
         score = sum(criteria_list)
         min_required = self.config.get("scoring", {}).get("min_criteria_required", 3)
@@ -298,8 +293,14 @@ class ETFScanner:
         if score < min_required:
             return None
 
-        # 5. RISK MANAGEMENT
-        sl_buffer_pct = self.config.get("risk_management", {}).get("sl_buffer_pct", 0.005)
+        # 5. RISK MANAGEMENT & TWARDE FILTRY STRUKTURALNE
+        risk_cfg = self.config.get("risk_management", {})
+        sl_buffer_pct = risk_cfg.get("sl_buffer_pct", 0.005)
+        max_sl_pct = risk_cfg.get("max_sl_distance_pct", 6.5)
+        max_candle_pct = risk_cfg.get("max_candle_change_pct", 4.0)
+        min_rr_tp1 = risk_cfg.get("min_rr_to_tp1", 0.75)
+        min_rr_tp2 = risk_cfg.get("min_rr_to_tp2", 1.50)
+        req_uptrend = risk_cfg.get("require_uptrend_sma200", False)
 
         # Dołek formacji świecowej lub poziomu Fibo
         formation_low = min(low_curr, float(prev['Low'])) if is_engulfing else low_curr
@@ -310,64 +311,54 @@ class ETFScanner:
 
         # Twardy Stop Loss: 0.5% poniżej dołka formacji / wsparcia Fibo
         sl_price = round(support_low * (1.0 - sl_buffer_pct), 2)
-        # Ochrona przed SL >= Close (np. gdyby świeca zamknęła się na samym dnie)
         if sl_price >= close_curr:
             sl_price = round(close_curr * 0.98, 2)
 
         sl_pct = round(((close_curr - sl_price) / close_curr) * 100.0, 2)
 
-risk_cfg = self.config.get("risk_management", {})
-    max_sl_pct = risk_cfg.get("max_sl_distance_pct", 6.5)
-    max_candle_pct = risk_cfg.get("max_candle_change_pct", 4.0)
-    min_rr_tp1 = risk_cfg.get("min_rr_to_tp1", 0.75)
-    min_rr_tp2 = risk_cfg.get("min_rr_to_tp2", 1.50)
-    req_uptrend = risk_cfg.get("require_uptrend_sma200", False)
+        # FILTR 1: Maksymalna szerokość Stop Lossa (odrzuca zbyt szerokie SL > 6.5%)
+        if sl_pct > max_sl_pct or sl_pct < 0.8:
+            logger.debug("[%s] Odrzucono: SL %.2f%% poza zakresem (0.8%% - %.2f%%).", ticker, sl_pct, max_sl_pct)
+            return None
 
-    # FILTR 1: Maksymalna szerokość Stop Lossa (odrzuca FRHC -11.34% i SYRE -8.87%)
-    if sl_pct > max_sl_pct or sl_pct < 0.8:
-        logger.debug("[%s] Odrzucono: SL %.2f%% poza dopuszczalnym zakresem (0.8%% - %.2f%%).", ticker, sl_pct, max_sl_pct)
-        return None
+        # FILTR 2: Anti-Chasing - zakaz gonienia przegrzanych świec (> 4.0%)
+        candle_body_pct = ((close_curr - open_curr) / open_curr) * 100.0 if open_curr > 0 else 0.0
+        large_candle_pct = max(change_pct, candle_body_pct)
+        is_large_candle = bool(large_candle_pct > 3.5)
+        if large_candle_pct > max_candle_pct:
+            logger.debug("[%s] Odrzucono (Anti-Chasing): świeca +%.2f%% > %.2f%%.", ticker, large_candle_pct, max_candle_pct)
+            return None
 
-    # FILTR 2: Anti-Chasing - zakaz gonienia przegrzanych świec (odrzuca SGI +7.39% i SYRE +8.15%)
-    candle_body_pct = ((close_curr - open_curr) / open_curr) * 100.0 if open_curr > 0 else 0.0
-    large_candle_pct = max(change_pct, candle_body_pct)
-    if large_candle_pct > max_candle_pct:
-        logger.debug("[%s] Odrzucono (Anti-Chasing): świeca +%.2f%% > %.2f%%.", ticker, large_candle_pct, max_candle_pct)
-        return None
+        # Wyznaczenie TP1 i TP2
+        risk = close_curr - sl_price
+        if risk <= 0:
+            return None
 
-    # Wyznaczenie TP1 i TP2
-    risk = close_curr - sl_price
-    if risk <= 0:
-        return None
+        # Jeśli cena zamknęła się już POWYŻEJ SMA20 (jak RPM!), to SMA20 jest wsparciem, a TP1 to BB_Upper
+        if close_curr >= bb_mid:
+            tp1_price = round(bb_upper, 2)
+        else:
+            tp1_price = round(bb_mid, 2)
 
-    # Jeśli cena zamknęła się już POWYŻEJ SMA20 (jak RPM!), to SMA20 jest wsparciem, a TP1 to BB_Upper
-    if close_curr >= bb_mid:
-        tp1_price = round(bb_upper, 2)
-    else:
-        tp1_price = round(bb_mid, 2)
+        tp2_price = round(max(fibo_levels["swing_high"], bb_upper * 1.02), 2)
+        if tp2_price <= tp1_price:
+            tp2_price = round(tp1_price + 1.0 * risk, 2)
 
-    tp2_price = round(max(fibo_levels["swing_high"], bb_upper * 1.02), 2)
-    if tp2_price <= tp1_price:
-        tp2_price = round(tp1_price + 1.0 * risk, 2)
+        tp1_pct = round(((tp1_price - close_curr) / close_curr) * 100.0, 2)
+        tp2_pct = round(((tp2_price - close_curr) / close_curr) * 100.0, 2)
 
-    tp1_pct = round(((tp1_price - close_curr) / close_curr) * 100.0, 2)
-    tp2_pct = round(((tp2_price - close_curr) / close_curr) * 100.0, 2)
+        rr_tp1 = (tp1_price - close_curr) / risk
+        rr_tp2 = (tp2_price - close_curr) / risk
+        rr_ratio = round(rr_tp2, 2)
 
-    rr_tp1 = (tp1_price - close_curr) / risk
-    rr_tp2 = (tp2_price - close_curr) / risk
-    rr_ratio = round(rr_tp2, 2)
+        # FILTR 3: Minimalny R:R do pierwszego oporu TP1 oraz do TP2
+        if rr_tp1 < min_rr_tp1 or rr_tp2 < min_rr_tp2:
+            logger.debug("[%s] Odrzucono przez filtr R:R: RR_TP1=%.2f (min %.2f), RR_TP2=%.2f (min %.2f).",
+                         ticker, rr_tp1, min_rr_tp1, rr_tp2, min_rr_tp2)
+            return None
 
-    # FILTR 3: Minimalny R:R do pierwszego oporu TP1 oraz do TP2 (odrzuca BIO z rr_tp1=0.27!)
-    if rr_tp1 < min_rr_tp1 or rr_tp2 < min_rr_tp2:
-        logger.debug("[%s] Odrzucono przez filtr R:R: RR_TP1=%.2f (min %.2f), RR_TP2=%.2f (min %.2f).",
-                     ticker, rr_tp1, min_rr_tp1, rr_tp2, min_rr_tp2)
-        return None
-
-    # FILTR 4: Opcjonalny wymóg Hossy (> SMA 200) dla pojedynczych akcji (ETF-y mają przywilej Mean Reversion)
-    sma_200 = float(curr['SMA_200']) if 'SMA_200' in curr and not np.isnan(curr['SMA_200']) else None
-    is_uptrend = bool(close_curr > sma_200) if sma_200 is not None else None
-    if req_uptrend and is_uptrend is False:
-        return None
+        # 6. TREND (SMA 200) ORAZ ATR(14)
+        sma_200 = float(curr['SMA_200']) if 'SMA_200' in curr and not np.isnan(curr['SMA_200']) else None
         if sma_200 is not None:
             is_uptrend = bool(close_curr > sma_200)
             trend_status = "✅ HOSSA (powyżej SMA200)" if is_uptrend else "⚠️ BESSA (poniżej SMA200)"
@@ -375,9 +366,10 @@ risk_cfg = self.config.get("risk_management", {})
             is_uptrend = None
             trend_status = "ℹ️ BRAK DANYCH (<200 sesji)"
 
-        candle_body_pct = ((close_curr - open_curr) / open_curr) * 100.0 if open_curr > 0 else 0.0
-        large_candle_pct = max(change_pct, candle_body_pct)
-        is_large_candle = bool(large_candle_pct > 3.5)
+        # FILTR 4: Opcjonalny wymóg Hossy (> SMA 200)
+        if req_uptrend and is_uptrend is False:
+            logger.debug("[%s] Odrzucono: instrument poniżej SMA 200 (require_uptrend_sma200=True).", ticker)
+            return None
 
         atr_val = float(curr['ATR_14']) if 'ATR_14' in curr and not np.isnan(curr['ATR_14']) else float((df['High'] - df['Low']).tail(14).mean())
         atr_sl_price = round(max(0.01, close_curr - (2.0 * atr_val)), 2)
@@ -426,7 +418,7 @@ risk_cfg = self.config.get("risk_management", {})
         Główna metoda wykonawcza:
         1. Wczytuje bazę tickerów.
         2. Pobiera dane zbiorczo.
-        3. Iteruje i weryfikuje każdy ETF.
+        3. Iteruje i weryfikuje każdy instrument.
         4. Zwraca listę zakwalifikowanych setupów.
         """
         tickers_df = self.load_tickers()
