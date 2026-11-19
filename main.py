@@ -1,11 +1,13 @@
 """
 ETF Confluence Scanner - main.py
 Główny punkt wejścia (Orkiestrator systemu).
-Uruchamia proces skanowania po zamknięciu sesji giełdowej w Europie:
+Uruchamia proces skanowania po zamknięciu sesji giełdowej:
 1. Ładuje zmienne środowiskowe (.env).
 2. Wczytuje konfigurację i bazę tickerów.
-3. Pobiera dane, weryfikuje płynność i wylicza konfluencję.
-4. Wysyła powiadomienia na Telegram dla zakwalifikowanych setupów.
+3. Wykonuje skanowanie ilościowe (filtracja płynności + konfluencja + twarde filtry R:R).
+4. Generuje wykresy techniczne 1D (mplfinance).
+5. Poddaje zakwalifikowane setupy audytowi multimodalnego Agenta AI (Gemini 2.5 Flash).
+6. Wysyła alerty z wykresami na Telegram i sprząta pliki tymczasowe.
 """
 
 import os
@@ -13,12 +15,14 @@ import sys
 import time
 import argparse
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Dict, Any, List
 import numpy as np
 import pandas as pd
 
 from scanner import ETFScanner
 from notifier import TelegramNotifier
+from chart_generator import generate_candlestick_chart
+from ai_auditor import AIAuditor
 
 logger = logging.getLogger("main")
 
@@ -26,14 +30,13 @@ logger = logging.getLogger("main")
 def load_environment_variables(env_path: str = ".env") -> None:
     """
     Bezpieczne ładowanie zmiennych z pliku .env.
-    Używa python-dotenv jeśli jest dostępne, lub natywnego bezpiecznego parsera.
+    Obsługuje python-dotenv lub natywny parser liniowy jako fallback.
     """
     try:
         from dotenv import load_dotenv  # type: ignore
         load_dotenv(dotenv_path=env_path)
         logger.debug("Załadowano .env przy użyciu python-dotenv.")
     except ImportError:
-        # Lekki, natywny parser .env jako fallback
         if os.path.exists(env_path):
             with open(env_path, "r", encoding="utf-8") as f:
                 for line in f:
@@ -51,7 +54,6 @@ def load_environment_variables(env_path: str = ".env") -> None:
 def generate_mock_market_data(tickers_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
     """
     Generuje realistyczne dane syntetyczne (OHLCV) dla testów w środowisku offline/CI.
-    Symuluje 1-2 setupy konfluencji (wyprzedanie + młot/engulfing na dolnym BB/Fibo).
     """
     logger.info("Generowanie danych syntetycznych (Mock Mode)...")
     np.random.seed(42)
@@ -60,31 +62,26 @@ def generate_mock_market_data(tickers_df: pd.DataFrame) -> Dict[str, pd.DataFram
 
     for idx, row in tickers_df.iterrows():
         ticker = row['ticker']
-        # Bazowa cena 50-200 EUR
         base_price = 50.0 + (idx * 5.0) % 150.0
         daily_returns = np.random.normal(loc=0.0002, scale=0.012, size=len(dates))
         
-        # Dla pierwszych 2 ETF-ów wymuszamy idealną korektę i odbicie (Setup Konfluencji)
+        # Wymuszamy korektę i odbicie
         if idx in (0, 3):
-            # Ostatnie 15 dni to spadek (RSI < 30)
             daily_returns[-15:-1] = -0.015
-            daily_returns[-1] = 0.005 # Odbicie na ostatniej sesji
+            daily_returns[-1] = 0.005
 
         cum_returns = np.cumprod(1.0 + daily_returns)
         closes = base_price * cum_returns
-
         highs = closes * (1.0 + np.abs(np.random.normal(0, 0.005, size=len(dates))))
         lows = closes * (1.0 - np.abs(np.random.normal(0, 0.005, size=len(dates))))
         opens = (closes + lows) / 2.0
-        volumes = np.random.randint(15000, 80000, size=len(dates))
+        volumes = np.random.randint(55000, 120000, size=len(dates))  # Płynność > 50k
 
-        # Jeżeli to targetowany setup konfluencji, wymodeluj świecę młota i absorpcję wolumenu
         if idx in (0, 3):
-            # Ostatnia świeca: Młot na wyprzedanym rynku
-            opens[-1] = closes[-1] * 0.998
-            lows[-1] = closes[-1] * 0.970  # Długi dolny knot
-            highs[-1] = closes[-1] * 1.002 # Minimalny górny knot
-            volumes[-1] = int(np.mean(volumes[-20:]) * 1.8) # RVol = 1.8x
+            opens[-1] = closes[-1] * 0.995
+            lows[-1] = closes[-1] * 0.980
+            highs[-1] = closes[-1] * 1.002
+            volumes[-1] = int(np.mean(volumes[-20:]) * 1.8)
 
         df_mock = pd.DataFrame({
             'Open': opens,
@@ -101,16 +98,16 @@ def generate_mock_market_data(tickers_df: pd.DataFrame) -> Dict[str, pd.DataFram
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="ETF Confluence Scanner - Skaner techniczny ETF-ów UCITS (1D) z powiadomieniami Telegram."
+        description="ETF/Stock Confluence Scanner - Automatyczny skaner z audytem AI i powiadomieniami Telegram."
     )
     parser.add_argument("--config", default="config.yaml", help="Ścieżka do pliku konfiguracji YAML")
     parser.add_argument("--env", default=".env", help="Ścieżka do pliku środowiskowego .env")
-    parser.add_argument("--dry-run", action="store_true", help="Tryb testowy: nie wysyła realnych żądań HTTP do Telegrama")
+    parser.add_argument("--dry-run", action="store_true", help="Tryb testowy: brak realnych żądań HTTP do Telegrama")
     parser.add_argument("--test-alert", action="store_true", help="Wysyła przykładowy alert testowy w celu weryfikacji połączenia")
     parser.add_argument("--mock-data", action="store_true", help="Używa syntetycznych danych do testów bez dostępu do sieci")
     args = parser.parse_args()
 
-    # 1. Ładowanie zmiennych środowiskowych
+    # 1. Konfiguracja środowiska
     load_environment_variables(args.env)
 
     # 2. Inicjalizacja skanera
@@ -126,74 +123,116 @@ def main() -> int:
     notifier = TelegramNotifier(
         bot_token=os.getenv(tg_cfg.get("token_env_var", "TELEGRAM_BOT_TOKEN")),
         chat_id=os.getenv(tg_cfg.get("chat_id_env_var", "TELEGRAM_CHAT_ID")),
-        timeout=tg_cfg.get("request_timeout", 10),
+        timeout=tg_cfg.get("request_timeout", 15),
         max_retries=tg_cfg.get("max_retries", 3),
         dry_run=is_dry_run
     )
 
     # Obsługa flagi testowej --test-alert
     if args.test_alert:
-        logger.info("Wysyłanie próbnego alertu testowego...")
+        logger.info("Wysyłanie próbnego alertu testowego (z werdyktem AI)...")
         dummy_setup = {
-            "ticker": "SXR8.DE",
-            "name": "iShares Core S&P 500 UCITS ETF (Acc)",
-            "sector": "Broad Index (US)",
-            "close": 542.80,
-            "change_pct": 0.85,
-            "rsi_val": 28.4,
-            "rsi_status": "Odbicie w górę ponad 30",
-            "fibo_status": "Strefa 0.618 (~540.20 EUR)",
-            "bb_status": "Dotknięcie dolnej wstęgi (Wsparcie)",
-            "candle_pattern": "Młot (Pinbar)",
-            "rvol": 1.65,
-            "macd_status": "Wygaszanie pędu podaży (histogram rośnie)",
-            "sl_price": 537.50,
-            "sl_pct": 0.98,
-            "tp1_price": 558.10,
-            "tp1_pct": 2.82,
-            "tp2_price": 578.40,
-            "tp2_pct": 6.56,
-            "rr_ratio": 6.72,
-            "rr_tp1": 2.88,
-            "score": 5
+            "ticker": "RPM",
+            "name": "RPM International Inc.",
+            "sector": "Materials",
+            "currency": "USD",
+            "close": 104.26,
+            "change_pct": 1.54,
+            "trend_status": "⚠️ BESSA (<SMA200)",
+            "rsi_val": 53.6,
+            "rsi_status": "Neutralny (>35)",
+            "fibo_status": "Strefa 0.618 (~101.09 USD)",
+            "bb_status": "Wewnątrz wstęg",
+            "candle_pattern": "Przenikanie / Wybicie SMA20",
+            "rvol": 1.43,
+            "macd_status": "Wygaszanie pędu podaży",
+            "sl_price": 100.58,
+            "sl_pct": 3.66,
+            "tp1_price": 109.09,
+            "tp1_pct": 4.63,
+            "tp2_price": 110.87,
+            "tp2_pct": 6.34,
+            "rr_ratio": 1.73,
+            "rr_tp1": 1.27,
+            "score": 4,
+            "ai_review": {
+                "verdict": "PASS",
+                "confidence_score": 8,
+                "market_structure": "Wyraźna obrona dołka HL (101.02) po listopadowym impulsie, odzyskanie SMA20",
+                "immediate_barrier": "109.09 (Górna wstęga Bollingera)",
+                "invalidation_level": "100.58 (Wybicie dołka świecy obrony)",
+                "devil_advocate_reasons": [
+                    "Kurs wciąż poniżej długoterminowej SMA200",
+                    "Możliwe cofnięcie do testu 103.15 przed ruchem w górę"
+                ],
+                "actionable_plan": "Szukać wejścia na reteście 103.20-103.80. Negacja poniżej 100.58."
+            }
         }
         msg = notifier.format_alert_message(dummy_setup)
         success = notifier.send_message(msg)
         return 0 if success else 1
 
     # 4. Wykonanie procesu skanowania
-    logger.info("=== [ROZPOCZĘCIE SKANOWANIA ETF CONFLUENCE SCANNER] ===")
+    logger.info("=== [ROZPOCZĘCIE SKANOWANIA CONFLUENCE SCANNER] ===")
     tickers_df = scanner.load_tickers()
 
     if args.mock_data:
         data_dict = generate_mock_market_data(tickers_df)
+        auditor = AIAuditor()
         qualified_setups: List[Dict[str, Any]] = []
+
         for _, row in tickers_df.iterrows():
             ticker = row['ticker']
             if ticker in data_dict:
-                setup = scanner.evaluate_ticker(ticker, row['name'], row['sector'], data_dict[ticker])
+                df = data_dict[ticker]
+                setup = scanner.evaluate_ticker(ticker, row['name'], row['sector'], df)
                 if setup:
-                    qualified_setups.append(setup)
+                    chart_file = f"chart_{ticker}.png"
+                    try:
+                        generate_candlestick_chart(df, ticker, output_path=chart_file)
+                        setup["chart_path"] = chart_file
+                    except Exception:
+                        setup["chart_path"] = None
+
+                    ai_verdict = auditor.audit_setup(chart_file, setup) if setup.get("chart_path") else {"verdict": "BYPASS"}
+                    setup["ai_review"] = ai_verdict
+                    if ai_verdict.get("verdict") in ["PASS", "BYPASS"]:
+                        qualified_setups.append(setup)
     else:
         qualified_setups = scanner.run_scan()
 
-    # 5. Dystrybucja powiadomień
+    # 5. Dystrybucja powiadomień (Wykres + Tekst)
     if not qualified_setups:
         logger.info(
-            "ℹ️ Brak instrumentów spełniających kryteria konfluencji (min. 3/5). "
-            "Zgodnie z zasadą braku fałszywych alarmów, żaden alert nie został wysłany."
+            "ℹ️ Brak setupów spełniających twarde kryteria ilościowe oraz wizualny audyt AI. "
+            "Portfel chroniony przed pozycjami o ujemnym EV. Zero fałszywych alarmów."
         )
         return 0
 
-    logger.info("🚀 Wykryto %d setup(ów) wysokiego prawdopodobieństwa! Rozpoczynam wysyłanie alertów...", len(qualified_setups))
+    logger.info("🚀 Zakwalifikowano %d setup(ów)! Rozpoczynam wysyłanie alertów...", len(qualified_setups))
 
     for idx, setup in enumerate(qualified_setups, 1):
         alert_msg = notifier.format_alert_message(setup)
-        notifier.send_message(alert_msg)
-        
-        # Krótka pauza między komunikatami w celu ochrony przed rate limitem Telegrama
+        chart_path = setup.get("chart_path")
+
+        # Priorytet: wyślij wykres z podpisem (send_photo), a jeśli brak wykresu: wyślij sam tekst
+        if chart_path and os.path.exists(chart_path):
+            sent = notifier.send_photo(photo_path=chart_path, caption=alert_msg)
+            # Higiena dysku: usunięcie pliku tymczasowego PNG po udanej lub nieudanej próbie
+            try:
+                os.remove(chart_path)
+                logger.debug("Usunięto plik tymczasowy wykresu: %s", chart_path)
+            except OSError as e:
+                logger.warning("Nie udało się usunąć pliku %s: %s", chart_path, e)
+        else:
+            sent = notifier.send_message(alert_msg)
+
+        if not sent:
+            logger.warning("Nie udało się dostarczyć alertu dla %s na Telegram.", setup.get("ticker"))
+
+        # Zabezpieczenie przed rate limitem Telegram API (30 wiadomości/sekundę)
         if idx < len(qualified_setups):
-            time.sleep(0.5)
+            time.sleep(1.0)
 
     logger.info("=== [ZAKOŃCZONO SKANOWANIE POMYŚLNIE] ===")
     return 0
