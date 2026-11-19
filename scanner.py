@@ -1,11 +1,6 @@
 """
 ETF Confluence Scanner - scanner.py
-Główny moduł silnika skanera:
-1. Wczytywanie bazy tickerów.
-2. Pobieranie danych paczkami (Batch Download via yfinance) z obsługą błędów.
-3. Filtracja płynności (SMA 20 Volume >= 50 000 oraz Dollar Volume >= 1 000 000).
-4. Wyliczanie wskaźników i ewaluacja Matrycy Konfluencji (minimum 3-4 z 5 kryteriów).
-5. Moduł Kalkulatora Ryzyka i Twardych Filtrów Strukturalnych (Entry, Stop Loss, TP1, TP2, R:R).
+Główny moduł silnika skanera zintegrowany z generatorem wykresów i Audytorem AI.
 """
 
 import os
@@ -16,11 +11,12 @@ import numpy as np
 import yaml
 
 import indicators
+from chart_generator import generate_candlestick_chart
+from ai_auditor import AIAuditor
 from notifier import TelegramNotifier
 
 logger = logging.getLogger(__name__)
 
-# Próba importu yfinance
 try:
     import yfinance as yf
     HAS_YFINANCE = True
@@ -41,14 +37,12 @@ class ETFScanner:
 
     @staticmethod
     def _load_config(path: str) -> Dict[str, Any]:
-        """Bezpieczne ładowanie pliku konfiguracyjnego YAML."""
         if not os.path.exists(path):
             raise FileNotFoundError(f"Plik konfiguracyjny {path} nie istnieje.")
         with open(path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f)
 
     def _setup_logging(self) -> None:
-        """Konfiguracja modułu logowania."""
         log_cfg = self.config.get("logging", {})
         log_level_str = log_cfg.get("level", "INFO").upper()
         log_level = getattr(logging, log_level_str, logging.INFO)
@@ -56,10 +50,6 @@ class ETFScanner:
         logging.basicConfig(level=log_level, format=log_format)
 
     def load_tickers(self) -> pd.DataFrame:
-        """
-        Wczytuje listę tickerów z pliku CSV zdefiniowanego w config.yaml.
-        Weryfikuje obecność wymaganych kolumn (ticker, name, sector).
-        """
         csv_file = self.config.get("data", {}).get("tickers_file", "tickers.csv")
         if not os.path.exists(csv_file):
             raise FileNotFoundError(f"Brak pliku bazy tickerów: {csv_file}")
@@ -77,20 +67,14 @@ class ETFScanner:
         return df
 
     def fetch_market_data(self, tickers: List[str]) -> Dict[str, pd.DataFrame]:
-        """
-        Zbiorcze pobieranie danych giełdowych (Batch Download) przy użyciu yfinance.
-        Zmniejsza liczbę requestów HTTP i chroni przed Rate Limitami.
-        Zwraca słownik {ticker: DataFrame z kolumnami OHLCV}.
-        """
         if not HAS_YFINANCE:
-            logger.error("Biblioteka yfinance jest niedostępna. Nie można pobrać danych rynkowych.")
+            logger.error("Biblioteka yfinance jest niedostępna.")
             return {}
 
         period = self.config.get("data", {}).get("period", "400d")
         interval = self.config.get("data", {}).get("interval", "1d")
 
-        logger.info("Rozpoczynanie pobierania danych zbiorczych dla %d tickerów (period=%s, interval=%s)...",
-                    len(tickers), period, interval)
+        logger.info("Pobieranie danych zbiorczych dla %d tickerów (period=%s)...", len(tickers), period)
 
         try:
             batch_df = yf.download(
@@ -108,7 +92,6 @@ class ETFScanner:
 
         result: Dict[str, pd.DataFrame] = {}
         if batch_df is None or batch_df.empty:
-            logger.warning("yf.download zwróciło pusty zbiór danych.")
             return result
 
         for ticker in tickers:
@@ -121,10 +104,6 @@ class ETFScanner:
 
     @staticmethod
     def _extract_single_ticker_df(batch_df: pd.DataFrame, ticker: str) -> Optional[pd.DataFrame]:
-        """
-        Wyodrębnia dane pojedynczego tickera z DataFrame MultiIndex yfinance.
-        Obsługuje warianty: MultiIndex (ticker, metric) oraz (metric, ticker).
-        """
         try:
             if isinstance(batch_df.columns, pd.MultiIndex):
                 if ticker in batch_df.columns.levels[0]:
@@ -158,37 +137,21 @@ class ETFScanner:
         sector: str,
         df: pd.DataFrame
     ) -> Optional[Dict[str, Any]]:
-        """
-        Analizuje pojedynczy instrument:
-        1. Weryfikuje filtr płynności (SMA 20 Volume oraz Dollar Volume).
-        2. Wylicza wskaźniki techniczne i geometrie Fibonacciego.
-        3. Weryfikuje 5 kryteriów konfluencji.
-        4. Jeżeli spełnione kryteria, nakłada Twarde Filtry Ryzyka (SL%, Anti-Chasing, R:R).
-        """
         liq_cfg = self.config.get("liquidity_filter", {})
-        min_vol_sma = liq_cfg.get("min_volume_sma_20", 5000)
+        min_vol_sma = liq_cfg.get("min_volume_sma_20", 50000)
         min_dollar_vol = liq_cfg.get("min_dollar_volume", 1000000)
 
         # 1. FILTR PŁYNNOŚCI
         vol_series = df['Volume']
         if len(vol_series) < 20:
-            logger.debug("[%s] Zbyt krótka historia danych (< 20 sesji).", ticker)
             return None
 
         sma_vol_20 = vol_series.rolling(20).mean().iloc[-1]
         if np.isnan(sma_vol_20) or sma_vol_20 < min_vol_sma:
-            logger.debug(
-                "[%s] Odrzucono przez filtr płynności: SMA(Vol,20)=%.0f < %d jednostek.",
-                ticker, 0 if np.isnan(sma_vol_20) else sma_vol_20, min_vol_sma
-            )
             return None
 
         dollar_vol_20 = sma_vol_20 * float(df['Close'].iloc[-1])
         if dollar_vol_20 < min_dollar_vol:
-            logger.debug(
-                "[%s] Odrzucono przez filtr obrotu: DollarVol=%.0f < %d.",
-                ticker, dollar_vol_20, min_dollar_vol
-            )
             return None
 
         # 2. KALKULACJA WSKAŹNIKÓW
@@ -200,7 +163,6 @@ class ETFScanner:
         prev = df_ind.iloc[-2]
         prev2 = df_ind.iloc[-3] if len(df_ind) >= 3 else prev
 
-        # Podstawowe dane cenowe
         close_curr = float(curr['Close'])
         close_prev = float(prev['Close'])
         open_curr = float(curr['Open'])
@@ -209,7 +171,6 @@ class ETFScanner:
         open_prev = float(prev['Open'])
         change_pct = ((close_curr - close_prev) / close_prev) * 100.0
 
-        # Odczyty wskaźników
         rsi_val = float(curr['RSI_14'])
         rsi_prev_val = float(prev['RSI_14'])
         rsi_prev2_val = float(prev2['RSI_14'])
@@ -222,78 +183,36 @@ class ETFScanner:
         hist_curr = float(curr['MACD_Hist'])
         hist_prev = float(prev['MACD_Hist'])
 
-        # 3. EWALUACJA 5 KRYTERIÓW MATRYCY KONFLUENCJI
-
-        # Kryterium 1: Wyprzedanie
+        # 3. EWALUACJA 5 KRYTERIÓW
         crossed_30_up = (rsi_prev_val < 30.0 and rsi_val >= 30.0) or (rsi_prev2_val < 30.0 and rsi_prev_val >= 30.0)
         c1_oversold = bool((rsi_val < 35.0) or crossed_30_up)
+        rsi_status = "Odbicie ponad 30" if crossed_30_up else ("Silnie wyprzedany (<30)" if rsi_val < 30.0 else ("Wyprzedany (<35)" if rsi_val < 35.0 else "Neutralny (>35)"))
 
-        if crossed_30_up:
-            rsi_status = "Odbicie w górę ponad 30"
-        elif rsi_val < 30.0:
-            rsi_status = "Silnie wyprzedany (<30)"
-        elif rsi_val < 35.0:
-            rsi_status = "Strefa wyprzedania (<35)"
-        else:
-            rsi_status = "Neutralny (>35)"
-
-        # Kryterium 2: Poziom / Geometria
         bb_touched = bool(low_curr <= (bb_lower * 1.002))
         fibo_margin = self.config.get("indicators", {}).get("fibonacci", {}).get("margin_pct", 0.01)
-        fibo_in_zone, fibo_level_key, fibo_target_price = indicators.is_in_fibo_support_zone(
-            low_curr, close_curr, fibo_levels, margin_pct=fibo_margin
-        )
+        fibo_in_zone, fibo_level_key, fibo_target_price = indicators.is_in_fibo_support_zone(low_curr, close_curr, fibo_levels, margin_pct=fibo_margin)
         c2_level = bool(bb_touched or fibo_in_zone)
 
         currency = TelegramNotifier.detect_currency(ticker)
-        bb_status = "Dotknięcie dolnej wstęgi (Wsparcie)" if bb_touched else "Wewnątrz wstęg"
-        if fibo_in_zone and fibo_target_price is not None:
-            fibo_status = f"Strefa {fibo_level_key} (~{fibo_target_price:.2f} {currency})"
-        else:
-            fibo_status = "Brak kluczowego wsparcia Fibo"
+        bb_status = "Dotknięcie dolnej wstęgi" if bb_touched else "Wewnątrz wstęg"
+        fibo_status = f"Strefa {fibo_level_key} (~{fibo_target_price:.2f} {currency})" if (fibo_in_zone and fibo_target_price) else "Brak wsparcia Fibo"
 
-        # Kryterium 3: Świecowe (Price Action)
         is_hammer = indicators.detect_hammer(open_curr, high_curr, low_curr, close_curr)
         is_engulfing = indicators.detect_bullish_engulfing(open_prev, close_prev, open_curr, close_curr)
         c3_candle = bool(is_hammer or is_engulfing)
+        candle_pattern = "Młot + Objęcie Hossy" if (is_hammer and is_engulfing) else ("Młot (Pinbar)" if is_hammer else ("Objęcie Hossy" if is_engulfing else "Brak formacji odwrócenia"))
 
-        if is_hammer and is_engulfing:
-            candle_pattern = "Młot + Objęcie Hossy"
-        elif is_hammer:
-            candle_pattern = "Młot (Pinbar)"
-        elif is_engulfing:
-            candle_pattern = "Objęcie Hossy (Bullish Engulfing)"
-        else:
-            candle_pattern = "Brak formacji odwrócenia"
-
-        # Kryterium 4: Wolumen
         rvol_threshold = self.config.get("indicators", {}).get("rvol", {}).get("absorption_threshold", 1.4)
         c4_volume = bool(rvol >= rvol_threshold)
-
-        # Kryterium 5: Impet (MACD)
         c5_momentum = bool((hist_prev < 0 and hist_curr > hist_prev))
+        macd_status = "Wygaszanie pędu podaży" if c5_momentum else ("Wzrostowy histogram" if hist_curr > hist_prev else "Pogłębianie spadków")
 
-        if c5_momentum:
-            macd_status = "Wygaszanie pędu podaży (histogram rośnie)"
-        elif hist_curr > hist_prev:
-            macd_status = "Wzrostowy histogram"
-        else:
-            macd_status = "Pogłębianie spadków (podaż aktywna)"
-
-        # 4. SCORING KONFLUENCJI
-        criteria_list = [c1_oversold, c2_level, c3_candle, c4_volume, c5_momentum]
-        score = sum(criteria_list)
+        score = sum([c1_oversold, c2_level, c3_candle, c4_volume, c5_momentum])
         min_required = self.config.get("scoring", {}).get("min_criteria_required", 3)
-
-        logger.debug(
-            "[%s] Wynik konfluencji: %d/5 (Wyp=%s, Geometria=%s, Świeca=%s, Vol=%s, Impet=%s)",
-            ticker, score, c1_oversold, c2_level, c3_candle, c4_volume, c5_momentum
-        )
-
         if score < min_required:
             return None
 
-        # 5. RISK MANAGEMENT & TWARDE FILTRY STRUKTURALNE
+        # 4. TWARDE FILTRY RYZYKA
         risk_cfg = self.config.get("risk_management", {})
         sl_buffer_pct = risk_cfg.get("sl_buffer_pct", 0.005)
         max_sl_pct = risk_cfg.get("max_sl_distance_pct", 6.5)
@@ -302,39 +221,29 @@ class ETFScanner:
         min_rr_tp2 = risk_cfg.get("min_rr_to_tp2", 1.50)
         req_uptrend = risk_cfg.get("require_uptrend_sma200", False)
 
-        # Dołek formacji świecowej lub poziomu Fibo
         formation_low = min(low_curr, float(prev['Low'])) if is_engulfing else low_curr
-        if fibo_in_zone and fibo_target_price is not None:
-            support_low = min(formation_low, fibo_target_price)
-        else:
-            support_low = formation_low
-
-        # Twardy Stop Loss: 0.5% poniżej dołka formacji / wsparcia Fibo
+        support_low = min(formation_low, fibo_target_price) if (fibo_in_zone and fibo_target_price) else formation_low
         sl_price = round(support_low * (1.0 - sl_buffer_pct), 2)
         if sl_price >= close_curr:
             sl_price = round(close_curr * 0.98, 2)
-
         sl_pct = round(((close_curr - sl_price) / close_curr) * 100.0, 2)
 
-        # FILTR 1: Maksymalna szerokość Stop Lossa (odrzuca zbyt szerokie SL > 6.5%)
+        # Filtr SL
         if sl_pct > max_sl_pct or sl_pct < 0.8:
-            logger.debug("[%s] Odrzucono: SL %.2f%% poza zakresem (0.8%% - %.2f%%).", ticker, sl_pct, max_sl_pct)
             return None
 
-        # FILTR 2: Anti-Chasing - zakaz gonienia przegrzanych świec (> 4.0%)
+        # Filtr wielkości świecy (Anti-Chasing)
         candle_body_pct = ((close_curr - open_curr) / open_curr) * 100.0 if open_curr > 0 else 0.0
         large_candle_pct = max(change_pct, candle_body_pct)
         is_large_candle = bool(large_candle_pct > 3.5)
         if large_candle_pct > max_candle_pct:
-            logger.debug("[%s] Odrzucono (Anti-Chasing): świeca +%.2f%% > %.2f%%.", ticker, large_candle_pct, max_candle_pct)
             return None
 
-        # Wyznaczenie TP1 i TP2
         risk = close_curr - sl_price
         if risk <= 0:
             return None
 
-        # Jeśli cena zamknęła się już POWYŻEJ SMA20 (jak RPM!), to SMA20 jest wsparciem, a TP1 to BB_Upper
+        # Geometria TP1 / TP2
         if close_curr >= bb_mid:
             tp1_price = round(bb_upper, 2)
         else:
@@ -351,34 +260,19 @@ class ETFScanner:
         rr_tp2 = (tp2_price - close_curr) / risk
         rr_ratio = round(rr_tp2, 2)
 
-        # FILTR 3: Minimalny R:R do pierwszego oporu TP1 oraz do TP2
         if rr_tp1 < min_rr_tp1 or rr_tp2 < min_rr_tp2:
-            logger.debug("[%s] Odrzucono przez filtr R:R: RR_TP1=%.2f (min %.2f), RR_TP2=%.2f (min %.2f).",
-                         ticker, rr_tp1, min_rr_tp1, rr_tp2, min_rr_tp2)
             return None
 
-        # 6. TREND (SMA 200) ORAZ ATR(14)
         sma_200 = float(curr['SMA_200']) if 'SMA_200' in curr and not np.isnan(curr['SMA_200']) else None
-        if sma_200 is not None:
-            is_uptrend = bool(close_curr > sma_200)
-            trend_status = "✅ HOSSA (powyżej SMA200)" if is_uptrend else "⚠️ BESSA (poniżej SMA200)"
-        else:
-            is_uptrend = None
-            trend_status = "ℹ️ BRAK DANYCH (<200 sesji)"
-
-        # FILTR 4: Opcjonalny wymóg Hossy (> SMA 200)
+        is_uptrend = bool(close_curr > sma_200) if sma_200 is not None else None
         if req_uptrend and is_uptrend is False:
-            logger.debug("[%s] Odrzucono: instrument poniżej SMA 200 (require_uptrend_sma200=True).", ticker)
             return None
+
+        trend_status = "✅ HOSSA (>SMA200)" if is_uptrend else ("⚠️ BESSA (<SMA200)" if is_uptrend is False else "ℹ️ BRAK SMA200")
 
         atr_val = float(curr['ATR_14']) if 'ATR_14' in curr and not np.isnan(curr['ATR_14']) else float((df['High'] - df['Low']).tail(14).mean())
         atr_sl_price = round(max(0.01, close_curr - (2.0 * atr_val)), 2)
         atr_sl_pct = round(((close_curr - atr_sl_price) / close_curr) * 100.0, 2) if close_curr > 0 else 0.0
-
-        logger.info(
-            "🎯 [%s] ZNALEZIONO SETUP KONFLUENCJI (Score: %d/5)! Close=%.2f %s, SL=%.2f (-%.2f%%), TP1=%.2f (+%.2f%%), TP2=%.2f (+%.2f%%), R:R=1:%.2f",
-            ticker, score, close_curr, currency, sl_price, sl_pct, tp1_price, tp1_pct, tp2_price, tp2_pct, rr_ratio
-        )
 
         return {
             "ticker": ticker,
@@ -415,11 +309,12 @@ class ETFScanner:
 
     def run_scan(self) -> List[Dict[str, Any]]:
         """
-        Główna metoda wykonawcza:
+        Główna pętla wykonawcza:
         1. Wczytuje bazę tickerów.
-        2. Pobiera dane zbiorczo.
-        3. Iteruje i weryfikuje każdy instrument.
-        4. Zwraca listę zakwalifikowanych setupów.
+        2. Pobiera dane historyczne.
+        3. Filtruje matematycznie przez evaluate_ticker.
+        4. Renderuje wykres PNG i pyta Agenta AI.
+        5. Zwraca wyłącznie zatwierdzone setupy z podpiętą analizą.
         """
         tickers_df = self.load_tickers()
         tickers_list = tickers_df['ticker'].tolist()
@@ -429,6 +324,7 @@ class ETFScanner:
             logger.warning("Brak danych rynkowych do analizy.")
             return []
 
+        auditor = AIAuditor()
         qualified_setups: List[Dict[str, Any]] = []
 
         for _, row in tickers_df.iterrows():
@@ -441,11 +337,34 @@ class ETFScanner:
 
             df = data_dict[ticker]
             setup = self.evaluate_ticker(ticker, name, sector, df)
+            
             if setup is not None:
-                qualified_setups.append(setup)
+                # 1. Wygeneruj wykres świecowy PNG
+                chart_file = f"chart_{ticker}.png"
+                try:
+                    generate_candlestick_chart(df, ticker, output_path=chart_file)
+                    setup["chart_path"] = chart_file
+                except Exception as chart_err:
+                    logger.error("Błąd generowania wykresu dla %s: %s", ticker, chart_err)
+                    setup["chart_path"] = None
 
-        logger.info(
-            "Zakończono skanowanie. Przeanalizowano %d instrumentów, zakwalifikowano %d setupów konfluencji.",
-            len(data_dict), len(qualified_setups)
-        )
+                # 2. Audyt AI (jeśli wykres istnieje)
+                if setup.get("chart_path"):
+                    ai_verdict = auditor.audit_setup(setup["chart_path"], setup)
+                else:
+                    ai_verdict = {"verdict": "BYPASS", "actionable_plan": "Brak wykresu do audytu."}
+
+                setup["ai_review"] = ai_verdict
+
+                # 3. Selekcja: przepuść jeśli PASS lub awaria API (BYPASS)
+                if ai_verdict.get("verdict") in ["PASS", "BYPASS"]:
+                    qualified_setups.append(setup)
+                    logger.info("✅ [%s] ZATWIERDZONY PRZEZ AI (Werdykt: %s, Score: %s/10)",
+                                ticker, ai_verdict.get("verdict"), ai_verdict.get("confidence_score", "N/A"))
+                else:
+                    logger.warning("🚫 [%s] ODRZUCONY PRZEZ AUDYTORA AI (Struktura: %s | Powody: %s)",
+                                   ticker, ai_verdict.get("market_structure"), 
+                                   ai_verdict.get("devil_advocate_reasons"))
+
+        logger.info("Zakończono skanowanie. Zakwalifikowano i zweryfikowano przez AI: %d setupów.", len(qualified_setups))
         return qualified_setups
