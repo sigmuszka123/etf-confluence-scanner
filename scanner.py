@@ -99,7 +99,7 @@ class ETFScanner:
                 period=period,
                 interval=interval,
                 group_by="ticker",
-                auto_adjust=False,
+                auto_adjust=True,
                 threads=True,
                 progress=False
             )
@@ -184,6 +184,10 @@ class ETFScanner:
                 "[%s] Odrzucono przez filtr płynności: SMA(Vol,20)=%.0f < %d jednostek.",
                 ticker, 0 if np.isnan(sma_vol_20) else sma_vol_20, min_vol_sma
             )
+            return None
+        min_dollar_vol = self.config.get("liquidity_filter", {}).get("min_dollar_volume", 1000000)
+            dollar_vol_20 = sma_vol_20 * float(df['Close'].iloc[-1])
+            if dollar_vol_20 < min_dollar_vol:
             return None
 
         # 2. KALKULACJA WSKAŹNIKÓW
@@ -312,32 +316,58 @@ class ETFScanner:
 
         sl_pct = round(((close_curr - sl_price) / close_curr) * 100.0, 2)
 
-        # Take Profit 1: Środkowa wstęga SMA 20 lub najbliższy opór
+risk_cfg = self.config.get("risk_management", {})
+    max_sl_pct = risk_cfg.get("max_sl_distance_pct", 6.5)
+    max_candle_pct = risk_cfg.get("max_candle_change_pct", 4.0)
+    min_rr_tp1 = risk_cfg.get("min_rr_to_tp1", 0.75)
+    min_rr_tp2 = risk_cfg.get("min_rr_to_tp2", 1.50)
+    req_uptrend = risk_cfg.get("require_uptrend_sma200", False)
+
+    # FILTR 1: Maksymalna szerokość Stop Lossa (odrzuca FRHC -11.34% i SYRE -8.87%)
+    if sl_pct > max_sl_pct or sl_pct < 0.8:
+        logger.debug("[%s] Odrzucono: SL %.2f%% poza dopuszczalnym zakresem (0.8%% - %.2f%%).", ticker, sl_pct, max_sl_pct)
+        return None
+
+    # FILTR 2: Anti-Chasing - zakaz gonienia przegrzanych świec (odrzuca SGI +7.39% i SYRE +8.15%)
+    candle_body_pct = ((close_curr - open_curr) / open_curr) * 100.0 if open_curr > 0 else 0.0
+    large_candle_pct = max(change_pct, candle_body_pct)
+    if large_candle_pct > max_candle_pct:
+        logger.debug("[%s] Odrzucono (Anti-Chasing): świeca +%.2f%% > %.2f%%.", ticker, large_candle_pct, max_candle_pct)
+        return None
+
+    # Wyznaczenie TP1 i TP2
+    risk = close_curr - sl_price
+    if risk <= 0:
+        return None
+
+    # Jeśli cena zamknęła się już POWYŻEJ SMA20 (jak RPM!), to SMA20 jest wsparciem, a TP1 to BB_Upper
+    if close_curr >= bb_mid:
+        tp1_price = round(bb_upper, 2)
+    else:
         tp1_price = round(bb_mid, 2)
-        if tp1_price <= close_curr:
-            # Jeżeli cena już jest powyżej SMA20, TP1 to poziom Fibo 0.382 lub BB Upper
-            tp1_price = round(max(bb_upper, fibo_levels.get("0.382", close_curr * 1.03)), 2)
 
-        tp1_pct = round(((tp1_price - close_curr) / close_curr) * 100.0, 2)
+    tp2_price = round(max(fibo_levels["swing_high"], bb_upper * 1.02), 2)
+    if tp2_price <= tp1_price:
+        tp2_price = round(tp1_price + 1.0 * risk, 2)
 
-        # Take Profit 2: Poziom Fibo 0.0 (lokalny szczyt z 60 dni)
-        tp2_price = round(fibo_levels["swing_high"], 2)
-        if tp2_price <= close_curr:
-            tp2_price = round(close_curr * 1.05, 2)
+    tp1_pct = round(((tp1_price - close_curr) / close_curr) * 100.0, 2)
+    tp2_pct = round(((tp2_price - close_curr) / close_curr) * 100.0, 2)
 
-        tp2_pct = round(((tp2_price - close_curr) / close_curr) * 100.0, 2)
+    rr_tp1 = (tp1_price - close_curr) / risk
+    rr_tp2 = (tp2_price - close_curr) / risk
+    rr_ratio = round(rr_tp2, 2)
 
-        # Stosunek Zysku do Ryzyka (Risk / Reward Ratio)
-        risk = close_curr - sl_price
-        reward_tp1 = tp1_price - close_curr
-        reward_tp2 = tp2_price - close_curr
+    # FILTR 3: Minimalny R:R do pierwszego oporu TP1 oraz do TP2 (odrzuca BIO z rr_tp1=0.27!)
+    if rr_tp1 < min_rr_tp1 or rr_tp2 < min_rr_tp2:
+        logger.debug("[%s] Odrzucono przez filtr R:R: RR_TP1=%.2f (min %.2f), RR_TP2=%.2f (min %.2f).",
+                     ticker, rr_tp1, min_rr_tp1, rr_tp2, min_rr_tp2)
+        return None
 
-        rr_tp1 = (reward_tp1 / risk) if risk > 0 else 0.0
-        rr_tp2 = (reward_tp2 / risk) if risk > 0 else 0.0
-        rr_ratio = round(rr_tp2, 2)
-
-        # 6. TREND (SMA 200), ATR(14) ORAZ OSTRZEŻENIE O DUŻEJ ŚWIECY
-        sma_200 = float(curr['SMA_200']) if 'SMA_200' in curr and not np.isnan(curr['SMA_200']) else None
+    # FILTR 4: Opcjonalny wymóg Hossy (> SMA 200) dla pojedynczych akcji (ETF-y mają przywilej Mean Reversion)
+    sma_200 = float(curr['SMA_200']) if 'SMA_200' in curr and not np.isnan(curr['SMA_200']) else None
+    is_uptrend = bool(close_curr > sma_200) if sma_200 is not None else None
+    if req_uptrend and is_uptrend is False:
+        return None
         if sma_200 is not None:
             is_uptrend = bool(close_curr > sma_200)
             trend_status = "✅ HOSSA (powyżej SMA200)" if is_uptrend else "⚠️ BESSA (poniżej SMA200)"
