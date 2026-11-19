@@ -2,12 +2,7 @@ name: ETF Confluence Scanner
 
 on:
   schedule:
-    # Uruchomienie od poniedziałku do piątku o 17:35 CET (czas zimowy: 16:35 UTC)
-    # W czasie letnim (CEST / UTC+2) zamknięcie sesji następuje o 15:30 UTC.
-    # Harmonogram: Minuta 35, Godzina 16 (UTC), Dni tygodnia: 1-5 (Pn-Pt)
-    - cron: '35 16 * * 1-5'
-
-  # Umożliwia ręczne uruchomienie skanera z poziomu zakładki Actions w GitHubie
+    - cron: '10 21 * * 1-5'
   workflow_dispatch:
     inputs:
       dry_run:
