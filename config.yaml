@@ -10,7 +10,8 @@ data:
 
 # Filtr płynności (Liquidity Filter)
 liquidity_filter:
-  min_volume_sma_20: 5000  # Odrzucenie instrumentów z SMA(Volume, 20) < 5 000
+  min_volume_sma_20: 50000    # ZMIANA z 5000: Odrzucenie niepłynnych spółek o szerokim spreadzie
+  min_dollar_volume: 1000000  # Minimum 1 mln USD/EUR średniego obrotu dziennego (Cena * Wolumen)
 
 # Parametry wskaźników technicznych
 indicators:
@@ -45,11 +46,16 @@ indicators:
 scoring:
   min_criteria_required: 4    # Wymagane minimum 3 z 5 kryteriów
 
-# Zarządzanie ryzykiem (Risk Management)
+# Zarządzanie ryzykiem i Twarde Filtry Strukturalne (z wniosków z backtest.py)
 risk_management:
-  sl_buffer_pct: 0.005        # Stop Loss: 0.5% poniżej dołka świecy/wsparcia Fibo
-  min_rr_tp1_warning: 1.0     # Oznaczenie podwyższonego ryzyka jeśli R:R do TP1 < 1.0
-
+  sl_buffer_pct: 0.005
+  min_rr_tp1_warning: 1.0
+  # NOWE TWARDE FILTRY (Hard Cutoffs - odrzucają setup zamiast tylko ostrzegać):
+  require_uptrend_sma200: false   # Ustaw true jeśli chcesz TYLKO hossę (>SMA200), lub false z filtrem R:R
+  max_candle_change_pct: 4.0      # Anti-Chasing: Odrzuć przegrzane świece > +4.0% (wycina SGI +7.4% i SYRE +8.1%)
+  max_sl_distance_pct: 6.5        # Ochrona kapitału: Odrzuć setupy z SL szerszym niż -6.5% (wycina FRHC -11.3% i SYRE -8.9%)
+  min_rr_to_tp1: 0.75             # Minimum R:R do pierwszego oporu (SMA20) >= 0.75 (wycina BIO 0.27 i SGI 0.25!)
+  min_rr_to_tp2: 1.50             # Minimum R:R do głównego celu (TP2) >= 1.50 (wycina SYRE 1.02!)
 # Konfiguracja powiadomień Telegram
 telegram:
   enabled: true
