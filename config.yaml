@@ -48,18 +48,20 @@ indicators:
 
 # Matryca konfluencji (Scoring)
 scoring:
-  min_criteria_required: 3    # Wymagane minimum 3 z 5 kryteriów
+  min_criteria_required: 4    # Wymagane minimum 3 z 5 kryteriów
 
 # Zarządzanie ryzykiem i Twarde Filtry Strukturalne (z wniosków z backtest.py)
 risk_management:
+  use_atr_sl: true               # Stop Loss oparty o zmienność (2.0 * ATR_14) zamiast ciasnego dołka świecy
+  atr_sl_multiplier: 2.0
   sl_buffer_pct: 0.005
   min_rr_tp1_warning: 1.0
-  # NOWE TWARDE FILTRY (Hard Cutoffs - odrzucają setup zamiast tylko ostrzegać):
-  require_uptrend_sma200: true   # ZMIANA: z false na true! Żadnego łapania noży w bessie (odcina FRHC)!
-  max_candle_change_pct: 3.0     # Zaostrzenie z 4.0% na 3.0% (zakaz gonienia świec)
-  max_sl_distance_pct: 5.5       # Zaostrzenie z 6.5% na 5.5% (tylko ciasne, kontrolowane ryzyko)
-  min_rr_to_tp1: 1.00            # Podniesienie z 0.75 na 1.00 (TP1 musi dawać minimum 1:1)
-  min_rr_to_tp2: 1.80   
+  # TWARDE FILTRY (Hard Cutoffs):
+  require_uptrend_sma200: true   # Tylko hossa (>SMA200)
+  max_candle_change_pct: 3.0     # Zakaz gonienia świec > 3.0%
+  max_sl_distance_pct: 8.5       # Dostosowane pod 2.0 * ATR_14 na zmiennych spółkach
+  min_rr_to_tp1: 0.60            # Przy szerszym SL (2x ATR) TP1 @ SMA20 może być bliżej (0.60R+)
+  min_rr_to_tp2: 1.40            # Cel końcowy TP2 musi dawać min. 1.40R
 # Konfiguracja powiadomień Telegram
 telegram:
   enabled: true
