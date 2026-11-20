@@ -709,11 +709,13 @@ class ConfluenceBacktester:
 
         # Parametry ryzyka i scoringu
         risk_cfg = self.config.get("risk_management", {})
+        use_atr_sl = bool(risk_cfg.get("use_atr_sl", True))
+        atr_sl_mult = float(risk_cfg.get("atr_sl_multiplier", 2.0))
         sl_buffer_pct = float(risk_cfg.get("sl_buffer_pct", 0.005))
-        max_sl_pct = float(risk_cfg.get("max_sl_distance_pct", 6.0))
-        max_candle_pct = float(risk_cfg.get("max_candle_change_pct", 3.5))
-        min_rr_tp1 = float(risk_cfg.get("min_rr_to_tp1", 0.75))
-        min_rr_tp2 = float(risk_cfg.get("min_rr_to_tp2", 1.60))
+        max_sl_pct = float(risk_cfg.get("max_sl_distance_pct", 8.5))
+        max_candle_pct = float(risk_cfg.get("max_candle_change_pct", 3.0))
+        min_rr_tp1 = float(risk_cfg.get("min_rr_to_tp1", 0.60))
+        min_rr_tp2 = float(risk_cfg.get("min_rr_to_tp2", 1.40))
         req_uptrend = bool(risk_cfg.get("require_uptrend_sma200", True))
 
         ind_cfg = self.config.get("indicators", {})
@@ -808,9 +810,14 @@ class ConfluenceBacktester:
                 continue
 
             # 5. TWARDE FILTRY RYZYKA I GEOMETRIA STOP LOSS / TAKE PROFIT
+            atr_val = float(atr_14[t]) if not np.isnan(atr_14[t]) else float(np.mean(highs[max(0, t-13):t+1] - lows[max(0, t-13):t+1]))
+            atr_sl_price = round(max(0.01, close_curr - (atr_sl_mult * atr_val)), 2)
+
             formation_low = min(low_curr, float(lows[t-1])) if is_engulfing else low_curr
             support_low = min(formation_low, fibo_target_price) if (fibo_in_zone and fibo_target_price) else formation_low
-            sl_price = round(support_low * (1.0 - sl_buffer_pct), 2)
+            structural_sl = round(support_low * (1.0 - sl_buffer_pct), 2)
+
+            sl_price = atr_sl_price if use_atr_sl else structural_sl
             if sl_price >= close_curr:
                 sl_price = round(close_curr * 0.98, 2)
             sl_pct = round(((close_curr - sl_price) / close_curr) * 100.0, 2)
@@ -860,8 +867,11 @@ class ConfluenceBacktester:
                 t += 1
                 continue
 
+            if use_atr_sl:
+                sl_price = round(max(0.01, entry_price - (atr_sl_mult * atr_val)), 2)
+
             risk = entry_price - sl_price
-            if risk <= 0:
+            if risk <= 0 or (risk / entry_price) < 0.008:
                 t += 1
                 continue
 
