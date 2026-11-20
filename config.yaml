@@ -8,10 +8,14 @@ data:
   interval: "1d"
   batch_size: 50
 
-# Filtr płynności (Liquidity Filter)
+# Filtr płynności (Liquidity Filter) - adaptacyjny pod specyfikę akcji i ETF-ów
 liquidity_filter:
-  min_volume_sma_20: 50000    # ZMIANA z 5000: Odrzucenie niepłynnych spółek o szerokim spreadzie
-  min_dollar_volume: 1000000  # Minimum 1 mln USD/EUR średniego obrotu dziennego (Cena * Wolumen)
+  min_volume_sma_20: 30000    # Standardowy próg dla akcji (US/Global)
+  min_dollar_volume: 1000000  # Minimum 1 mln USD/EUR dziennego obrotu dla akcji
+  # Specyfika europejskich funduszy ETF UCITS (XETRA, LSE) - animacja przez AP / wysoka cena jednostkowa
+  etfs_europe:
+    min_volume_sma_20: 3000    # Dla funduszy ETF wystarczy 3 000 jednostek przy wysokiej cenie
+    min_dollar_volume: 250000  # Minimum 250 tys. EUR obrotu w arkuszu giełdowym
 
 # Parametry wskaźników technicznych
 indicators:
