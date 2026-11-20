@@ -34,8 +34,9 @@ import numpy as np
 import pandas as pd
 import yaml
 
-# Import lokalnego modułu wskaźników
+# Import lokalnego modułu wskaźników i skanera
 import indicators
+from scanner import ETFScanner
 
 # Opcjonalny import yfinance z bezpiecznym fallbackiem
 try:
@@ -67,6 +68,7 @@ class Trade:
     score: int
     rvol: float = 0.0
     rsi_14: float = 50.0
+    asset_type: str = "ETF"     # 'ETF' lub 'Equity'
     
     # Stan i wynik transakcji
     exit_date: Optional[pd.Timestamp] = None
@@ -113,6 +115,10 @@ class BacktestMetrics:
     
     # Rozkład powodów zamknięcia
     exit_counts: Dict[str, int] = field(default_factory=dict)
+    
+    # Rozbicie wg klas aktywów (ETF vs Akcje) oraz wg lat (Out-of-Sample / Stabilność w czasie)
+    by_asset_type: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    by_year: Dict[int, Dict[str, Any]] = field(default_factory=dict)
 
 
 class BacktestResult:
@@ -206,6 +212,38 @@ class BacktestResult:
             reason = t.exit_reason or "Inne"
             m.exit_counts[reason] = m.exit_counts.get(reason, 0) + 1
 
+        # Rozbicie na klasy aktywów (ETF vs Akcje)
+        all_types = sorted(set(getattr(t, "asset_type", "ETF") for t in self.trades))
+        for atype in all_types:
+            sub = [t for t in self.trades if getattr(t, "asset_type", "ETF") == atype]
+            sub_r = [t.r_multiple for t in sub]
+            sub_w = len([r for r in sub_r if r > 0])
+            gp = sum(r for r in sub_r if r > 0)
+            gl = abs(sum(r for r in sub_r if r < 0))
+            pf = (gp / gl) if gl > 0 else (float("inf") if gp > 0 else 0.0)
+            m.by_asset_type[atype] = {
+                "n": len(sub),
+                "win_rate": (sub_w / len(sub)) * 100.0 if sub else 0.0,
+                "avg_r": float(np.mean(sub_r)) if sub else 0.0,
+                "profit_factor": pf
+            }
+
+        # Rozbicie w czasie / Analiza Out-of-Sample (wg lat wejścia)
+        all_years = sorted(set(t.entry_date.year for t in self.trades if t.entry_date is not None))
+        for y in all_years:
+            sub_y = [t for t in self.trades if t.entry_date.year == y]
+            sub_y_r = [t.r_multiple for t in sub_y]
+            sub_y_w = len([r for r in sub_y_r if r > 0])
+            gp = sum(r for r in sub_y_r if r > 0)
+            gl = abs(sum(r for r in sub_y_r if r < 0))
+            pf = (gp / gl) if gl > 0 else (float("inf") if gp > 0 else 0.0)
+            m.by_year[y] = {
+                "n": len(sub_y),
+                "win_rate": (sub_y_w / len(sub_y)) * 100.0 if sub_y else 0.0,
+                "avg_r": float(np.mean(sub_y_r)) if sub_y else 0.0,
+                "profit_factor": pf
+            }
+
         return m
 
     def print_summary(self, elapsed_sec: float = 0.0, total_tickers: int = 0) -> None:
@@ -214,11 +252,11 @@ class BacktestResult:
         pf_str = f"{m.profit_factor:.2f}" if m.profit_factor != float("inf") else "INF (Brak strat)"
 
         print("\n" + "=" * 88)
-        print("          ETF / STOCK CONFLUENCE SCANNER — RAPORT TESTOWANIA WSTECZNEGO")
+        print("      ETF & EQUITY CONFLUENCE SCANNER — RAPORT TESTOWANIA WSTECZNEGO (1:1 SCANNER)")
         print("=" * 88)
         print(f" Liczba przeanalizowanych tickerów:  {total_tickers:,}")
         print(f" Czas wykonania symulacji:           {elapsed_sec:.2f} s")
-        print(f" Model egzekucji i zarządzania:      Wejście @ Open(T+1) | SL=-1.0R | TP1 @ SMA20 | TP2 @ 60d High")
+        print(f" Model egzekucji i zarządzania:      Wejście @ Open(T+1) | SL pod formacją/Fibo | TP1 @ SMA20/UpperBB | TP2 @ 60d High")
         print("-" * 88)
         print(" GŁÓWNE METRYKI ILOŚCIOWE (KLUCZOWE WYMAGANIA PROJEKTU):")
         print("-" * 88)
@@ -241,6 +279,22 @@ class BacktestResult:
         for reason, count in sorted(m.exit_counts.items(), key=lambda x: -x[1]):
             pct = (count / m.total_trades) * 100.0 if m.total_trades > 0 else 0.0
             print(f"      - {reason:<20s}: {count:>5d} ({pct:>5.1f} %)")
+
+        if m.by_asset_type:
+            print("-" * 88)
+            print(" WYNIKI WG KLASY AKTYWÓW (ETF UCITS VS AKCJE INDYWIDUALNE):")
+            print("-" * 88)
+            for atype, stats in m.by_asset_type.items():
+                pf_s = f"{stats['profit_factor']:.2f}" if stats['profit_factor'] != float("inf") else "INF"
+                print(f"  • {atype:<15s}: N={stats['n']:>4d} | Win Rate: {stats['win_rate']:>5.1f}% | Avg R: {stats['avg_r']:>+5.2f} R | Profit Factor: {pf_s:>5s}")
+
+        if m.by_year:
+            print("-" * 88)
+            print(" STABILNOŚĆ W CZASIE (ROZKŁAD ROCZNY / ANALIZA OUT-OF-SAMPLE):")
+            print("-" * 88)
+            for year, stats in m.by_year.items():
+                pf_s = f"{stats['profit_factor']:.2f}" if stats['profit_factor'] != float("inf") else "INF"
+                print(f"  • Rok {year}:         N={stats['n']:>4d} | Win Rate: {stats['win_rate']:>5.1f}% | Avg R: {stats['avg_r']:>+5.2f} R | Profit Factor: {pf_s:>5s}")
         print("=" * 88 + "\n")
 
     def to_dataframe(self) -> pd.DataFrame:
@@ -629,202 +683,279 @@ class ConfluenceBacktester:
         rsi_2 = ind_df["RSI_2"].values
         atr_14 = ind_df["ATR_14"].values
         bb_lower = ind_df["BB_Lower"].values
+        bb_mid = ind_df["BB_Middle"].values
         bb_upper = ind_df["BB_Upper"].values
         sma_20 = ind_df["SMA_20"].values
         sma_200 = ind_df["SMA_200"].values
+        macd_hist = ind_df["MACD_Hist"].values
         rvol = ind_df["RVol"].values
         sma_vol = ind_df["SMA_Volume_20"].values
 
         # 60-sesyjne Swing High (fallback dla TP2)
         roll_high = df["High"].rolling(self.lookback_window, min_periods=self.lookback_window).max().values
 
+        # Rozpoznanie klasy aktywa (ETF vs Akcje)
+        is_etf = ETFScanner.is_etf_instrument(ticker, name, sector)
+        asset_type = "ETF" if is_etf else "Equity"
+
+        # Adaptacyjny dobór progów płynności (specyfika rynku ETF UCITS vs Akcje)
+        liq_cfg = self.config.get("liquidity_filter", {})
+        if is_etf and "etfs_europe" in liq_cfg:
+            min_vol_sma = float(liq_cfg["etfs_europe"].get("min_volume_sma_20", 3000))
+            min_dollar_vol = float(liq_cfg["etfs_europe"].get("min_dollar_volume", 250000))
+        else:
+            min_vol_sma = float(liq_cfg.get("min_volume_sma_20", 30000))
+            min_dollar_vol = float(liq_cfg.get("min_dollar_volume", 1000000))
+
+        # Parametry ryzyka i scoringu
+        risk_cfg = self.config.get("risk_management", {})
+        sl_buffer_pct = float(risk_cfg.get("sl_buffer_pct", 0.005))
+        max_sl_pct = float(risk_cfg.get("max_sl_distance_pct", 6.0))
+        max_candle_pct = float(risk_cfg.get("max_candle_change_pct", 3.5))
+        min_rr_tp1 = float(risk_cfg.get("min_rr_to_tp1", 0.75))
+        min_rr_tp2 = float(risk_cfg.get("min_rr_to_tp2", 1.60))
+        req_uptrend = bool(risk_cfg.get("require_uptrend_sma200", True))
+
+        ind_cfg = self.config.get("indicators", {})
+        rvol_threshold = float(ind_cfg.get("rvol", {}).get("absorption_threshold", 1.4))
+        fibo_window = int(ind_cfg.get("fibonacci", {}).get("lookback_window", self.lookback_window))
+        fibo_margin = float(ind_cfg.get("fibonacci", {}).get("margin_pct", 0.01))
+        min_required_score = int(self.config.get("scoring", {}).get("min_criteria_required", self.min_score))
+
         trades: List[Trade] = []
         t = warmup
 
         while t < n - 1:
-            # 1. FILTR PŁYNNOŚCI I KOMPLETNOŚCI WSKAŹNIKÓW
-            if (
-                np.isnan(sma_vol[t]) or sma_vol[t] < self.min_volume_sma_20
-                or np.isnan(sma_200[t]) or np.isnan(atr_14[t]) or atr_14[t] <= 0
-                or np.isnan(sma_20[t]) or np.isnan(bb_lower[t]) or np.isnan(bb_upper[t])
-            ):
+            # 1. FILTR PŁYNNOŚCI
+            if np.isnan(sma_vol[t]) or sma_vol[t] < min_vol_sma:
+                t += 1
+                continue
+            dollar_vol = sma_vol[t] * float(closes[t])
+            if dollar_vol < min_dollar_vol:
                 t += 1
                 continue
 
-            # 2. WARUNKI SYGNAŁU v3.1 (Mean Reversion w Hossie + Filtr Struktury R:R)
-            # A) Filtr Trendu Głównego: Close > SMA(200) oraz SMA(200) nie opada gwałtownie
-            in_uptrend = bool(closes[t] > sma_200[t] and closes[t] < sma_20[t])
+            if np.isnan(rsi[t]) or np.isnan(bb_lower[t]) or np.isnan(macd_hist[t]):
+                t += 1
+                continue
 
-            # B) Warunek Wyprzedania: RSI(14) < 38 LUB Close < BB_Lower LUB RSI(2) < 10
-            c_rsi14 = bool(rsi[t] < 38.0)
-            c_bb = bool(closes[t] < bb_lower[t])
-            c_rsi2 = bool(rsi_2[t] < 10.0)
-            is_oversold = bool(c_rsi14 or c_bb or c_rsi2)
-
-            # C) Anti-Chasing (< +2.5%) ORAZ Anti-Crash (> -4.5%, żeby nie łapać paniki po wynikach)
-            intraday_chg = (closes[t] - opens[t]) / opens[t] if opens[t] > 0 else 0.0
-            not_chasing = bool(-0.045 < intraday_chg < 0.025)
-
-            # D) Filtr miejsca do SMA_20 już w dniu sygnału T (minimum 0.75 * ATR przestrzeni do średniej!)
-            room_to_sma20 = (sma_20[t] - closes[t]) >= (0.75 * atr_14[t])
-
-            if in_uptrend and is_oversold and not_chasing and room_to_sma20:
-                entry_idx = t + 1
-                entry_date = dates[entry_idx]
-                signal_date = dates[t]
-                entry_price = float(opens[entry_idx])
-
-                # Odrzucenie spółek groszowych (ochrona przed zniekształceniem zaokrągleń i wysokimi spreadami)
-                if entry_price < self.min_price:
+            # 2. FILTR TRENDU GŁÓWNEGO (SMA 200)
+            if req_uptrend and sma_200 is not None:
+                if not np.isnan(sma_200[t]) and closes[t] <= sma_200[t]:
                     t += 1
                     continue
 
+            # 3. ZMIANA DZIENNA I OCHRONA ANTY-CRASH DLA AKCJI
+            close_curr = float(closes[t])
+            close_prev = float(closes[t-1])
+            open_curr = float(opens[t])
+            high_curr = float(highs[t])
+            low_curr = float(lows[t])
+            open_prev = float(opens[t-1])
+            change_pct = ((close_curr - close_prev) / close_prev) * 100.0
 
-                # Stop Loss oparty o ATR(14): 1.8 * ATR (nieco ciaśniejszy, by poprawić R:R do SMA20)
-                atr_val = float(atr_14[t])
-                sl_price = round(entry_price - 1.8 * atr_val, 2)
+            if not is_etf and change_pct < -6.0:
+                t += 1
+                continue
 
-                risk = entry_price - sl_price
-                if risk <= 0:
-                    t += 1
-                    continue
+            # 4. EWALUACJA 5 KRYTERIÓW MATRYCY KONFLUENCJI (1:1 ze scanner.py)
+            # C1: Wyprzedanie RSI (RSI < 35 lub powrót ponad 30 w 2 sesjach)
+            rsi_val = float(rsi[t])
+            rsi_prev_val = float(rsi[t-1])
+            rsi_prev2_val = float(rsi[t-2]) if t >= 2 else rsi_prev_val
+            crossed_30_up = (rsi_prev_val < 30.0 and rsi_val >= 30.0) or (rsi_prev2_val < 30.0 and rsi_prev_val >= 30.0)
+            c1_oversold = bool(rsi_val < 35.0 or crossed_30_up)
 
-                # FILTR LUKI OTWARCIA T+1: Jeśli w dniu T+1 rynek otworzył się luką wzrostową
-                # tak wysoko, że do SMA(20) zostało mniej niż 0.70 R -> ODRZUCAMY WEJŚCIE (zakaz gonienia!)
-                tp1_raw = float(sma_20[t])
-                if (tp1_raw - entry_price) < (0.70 * risk):
-                    t += 1
-                    continue
+            # C2: Dolna wstęga Bollingera lub Strefa Wsparcia Fibo (0.500/0.618 z ostatnich 60 sesji)
+            bb_touched = bool(low_curr <= (bb_lower[t] * 1.002))
+            w_start = max(0, t - fibo_window + 1)
+            swing_high = float(highs[w_start:t + 1].max())
+            swing_low = float(lows[w_start:t + 1].min())
+            diff = swing_high - swing_low
+            fibo_in_zone = False
+            fibo_target_price = None
 
-                # TP1 = SMA(20), ale nigdy mniej niż +1.0 R (gwarancja Payoff >= 1.0 na pierwszej połowie!)
-                tp1_price = round(max(tp1_raw, entry_price + 1.0 * risk), 2)
-
-            
-                # TP2 = Upper Bollinger Band (naturalny cel Mean Reversion), min. +1.6 R
-                tp2_raw = float(bb_upper[t])
-                if tp2_raw <= tp1_price:
-                    tp2_raw = float(roll_high[t])
-                tp2_price = round(max(tp2_raw, entry_price + 1.6 * risk), 2)
-
-                
-
-                # Koszt transakcyjny na stronę (prowizja + poślizg/spread)
-                cost_pct = self.fee_pct + self.slippage_pct
-                entry_cost_r = (entry_price * cost_pct) / risk
-
-                def calc_net_r(exit_p: float) -> float:
-                    gross_r = (exit_p - entry_price) / risk
-                    exit_cost_r = (exit_p * cost_pct) / risk
-                    return gross_r - entry_cost_r - exit_cost_r
-
-                signal_score = 3 + int(c_rsi14) + int(c_bb) + int(c_rsi2)
-
-                # Utworzenie obiektu transakcji
-                trade = Trade(
-                    ticker=ticker,
-                    name=name,
-                    sector=sector,
-                    signal_date=signal_date,
-                    entry_date=entry_date,
-                    entry_price=entry_price,
-                    initial_sl=sl_price,
-                    risk=risk,
-                    tp1_price=tp1_price,
-                    tp2_price=tp2_price,
-                    score=signal_score,
-                    rvol=float(rvol[t]) if not np.isnan(rvol[t]) else 0.0,
-                    rsi_14=float(rsi[t]) if not np.isnan(rsi[t]) else 50.0
-                )
-
-                # 4. ŚLEDZENIE POZYCJI W DNIACH T+1, T+2, ... DO DNIA 20 (TIME STOP)
-                tp1_hit = False
-                current_sl = sl_price
-                r_tp1_net = calc_net_r(tp1_price)
-                holding_days = 0
-
-                for day_step in range(1, self.time_stop + 1):
-                    curr_idx = t + day_step
-                    holding_days = day_step
-
-                    # Ochrona przed wyjściem poza zakres danych historycznych
-                    if curr_idx >= n:
-                        last_close = float(closes[-1])
-                        r_close = calc_net_r(last_close)
-                        if not tp1_hit:
-                            trade.r_multiple = r_close
-                            trade.exit_reason = "TimeStop"
-                        else:
-                            trade.r_multiple = 0.5 * r_tp1_net + 0.5 * r_close
-                            trade.exit_reason = "TP1+TimeStop"
-                        trade.exit_date = dates[-1]
-                        trade.exit_price = last_close
-                        trade.holding_days = holding_days
-                        trade.tp1_hit = tp1_hit
+            if diff > 0:
+                for ratio in [0.500, 0.618]:
+                    lvl_p = swing_high - (ratio * diff)
+                    lb = lvl_p * (1.0 - fibo_margin)
+                    ub = lvl_p * (1.0 + fibo_margin)
+                    if (lb <= low_curr <= ub) or (lb <= close_curr <= ub):
+                        fibo_in_zone = True
+                        fibo_target_price = lvl_p
                         break
 
-                    d_open = float(opens[curr_idx])
-                    d_low = float(lows[curr_idx])
-                    d_high = float(highs[curr_idx])
-                    d_close = float(closes[curr_idx])
-                    d_date = dates[curr_idx]
+            c2_level = bool(bb_touched or fibo_in_zone)
 
+            # C3: Price Action (Młot / Pinbar lub Objęcie Hossy)
+            is_hammer = indicators.detect_hammer(open_curr, high_curr, low_curr, close_curr)
+            is_engulfing = indicators.detect_bullish_engulfing(open_prev, close_prev, open_curr, close_curr)
+            c3_candle = bool(is_hammer or is_engulfing)
+
+            # C4: Wolumen absorpcyjny (RVol >= próg)
+            rvol_val = float(rvol[t]) if not np.isnan(rvol[t]) else 1.0
+            c4_volume = bool(rvol_val >= rvol_threshold)
+
+            # C5: Impet MACD (wygaszanie pędu podaży - krótszy ujemny histogram)
+            hist_curr = float(macd_hist[t])
+            hist_prev = float(macd_hist[t-1])
+            c5_momentum = bool(hist_prev < 0 and hist_curr > hist_prev)
+
+            # Scoring konfluencji
+            score = sum([c1_oversold, c2_level, c3_candle, c4_volume, c5_momentum])
+            if score < min_required_score:
+                t += 1
+                continue
+
+            # 5. TWARDE FILTRY RYZYKA I GEOMETRIA STOP LOSS / TAKE PROFIT
+            formation_low = min(low_curr, float(lows[t-1])) if is_engulfing else low_curr
+            support_low = min(formation_low, fibo_target_price) if (fibo_in_zone and fibo_target_price) else formation_low
+            sl_price = round(support_low * (1.0 - sl_buffer_pct), 2)
+            if sl_price >= close_curr:
+                sl_price = round(close_curr * 0.98, 2)
+            sl_pct = round(((close_curr - sl_price) / close_curr) * 100.0, 2)
+
+            if sl_pct > max_sl_pct or sl_pct < 0.8:
+                t += 1
+                continue
+
+            # Filtr Anti-Chasing (wielkość świecy sygnałowej)
+            candle_body_pct = ((close_curr - open_curr) / open_curr) * 100.0 if open_curr > 0 else 0.0
+            large_candle_pct = max(change_pct, candle_body_pct)
+            if large_candle_pct > max_candle_pct:
+                t += 1
+                continue
+
+            risk_t = close_curr - sl_price
+            if risk_t <= 0:
+                t += 1
+                continue
+
+            # Geometria TP1 / TP2
+            bb_mid_val = float(sma_20[t])
+            bb_upper_val = float(bb_upper[t])
+            if close_curr >= bb_mid_val:
+                tp1_price = round(bb_upper_val, 2)
+            else:
+                tp1_price = round(bb_mid_val, 2)
+
+            tp2_price = round(max(swing_high, bb_upper_val * 1.02), 2)
+            if tp2_price <= tp1_price:
+                tp2_price = round(tp1_price + 1.0 * risk_t, 2)
+
+            rr_tp1 = (tp1_price - close_curr) / risk_t
+            rr_tp2 = (tp2_price - close_curr) / risk_t
+
+            if rr_tp1 < min_rr_tp1 or rr_tp2 < min_rr_tp2:
+                t += 1
+                continue
+
+            # 6. EGZEKUCJA W DNIU T+1 PO CENIE OTWARCIA
+            entry_idx = t + 1
+            entry_date = dates[entry_idx]
+            signal_date = dates[t]
+            entry_price = float(opens[entry_idx])
+
+            if entry_price < self.min_price:
+                t += 1
+                continue
+
+            risk = entry_price - sl_price
+            if risk <= 0:
+                t += 1
+                continue
+
+            # Filtr luki otwarcia: odrzucamy, jeśli luka w górę zjadła przestrzeń do TP1
+            if (tp1_price - entry_price) < (0.35 * risk):
+                t += 1
+                continue
+
+            # Koszt transakcyjny (prowizja + poślizg)
+            cost_pct = self.fee_pct + self.slippage_pct
+            entry_cost_r = (entry_price * cost_pct) / risk
+
+            def calc_net_r(exit_p: float) -> float:
+                gross_r = (exit_p - entry_price) / risk
+                exit_cost_r = (exit_p * cost_pct) / risk
+                return gross_r - entry_cost_r - exit_cost_r
+
+            trade = Trade(
+                ticker=ticker,
+                name=name,
+                sector=sector,
+                signal_date=signal_date,
+                entry_date=entry_date,
+                entry_price=entry_price,
+                initial_sl=sl_price,
+                risk=risk,
+                tp1_price=tp1_price,
+                tp2_price=tp2_price,
+                score=score,
+                rvol=rvol_val,
+                rsi_14=rsi_val,
+                asset_type=asset_type
+            )
+
+            # 7. ŚLEDZENIE POZYCJI W DNIACH T+1, T+2, ... DO DNIA 20 (TIME STOP)
+            tp1_hit = False
+            current_sl = sl_price
+            r_tp1_net = calc_net_r(tp1_price)
+            holding_days = 0
+
+            for day_step in range(1, self.time_stop + 1):
+                curr_idx = t + day_step
+                holding_days = day_step
+
+                # Ochrona przed wyjściem poza zakres danych historycznych
+                if curr_idx >= n:
+                    last_close = float(closes[-1])
+                    r_close = calc_net_r(last_close)
                     if not tp1_hit:
-                        # PRZED OSIĄGNIĘCIEM TP1:
-                        # 1. Sprawdzenie luki otwarcia (Overnight Gap poniżej SL)
-                        if d_open <= current_sl:
-                            trade.r_multiple = calc_net_r(d_open)
-                            trade.exit_reason = "SL (Gap)"
-                            trade.exit_date = d_date
-                            trade.exit_price = d_open
-                            trade.holding_days = holding_days
-                            break
-                        # 2. Reguła bezpieczeństwa Intraday: jeśli Low <= SL -> ZAWSZE SL (przed TP1)
-                        elif d_low <= current_sl:
-                            trade.r_multiple = calc_net_r(current_sl)
-                            trade.exit_reason = "SL"
-                            trade.exit_date = d_date
-                            trade.exit_price = current_sl
-                            trade.holding_days = holding_days
-                            break
-                        elif d_high >= tp1_price:
-                            # Realizacja 50% pozycji na TP1
-                            tp1_hit = True
-                            trade.tp1_hit = True
-                            trade.tp1_date = d_date
-                            # SL dla pozostałych 50% przestawiony na Break-Even
-                            current_sl = entry_price
-
-                            # Sprawdzenie czy w tym samym dniu osiągnięto również TP2
-                            if d_high >= tp2_price:
-                                r_tp2_net = calc_net_r(tp2_price)
-                                trade.r_multiple = 0.5 * r_tp1_net + 0.5 * r_tp2_net
-                                trade.exit_reason = "TP1+TP2"
-                                trade.exit_date = d_date
-                                trade.exit_price = tp2_price
-                                trade.holding_days = holding_days
-                                break
+                        trade.r_multiple = r_close
+                        trade.exit_reason = "TimeStop"
                     else:
-                        # PO OSIĄGNIĘCIU TP1 (POZOSTAŁE 50% POZYCJI Z SL NA BREAK-EVEN):
-                        # 1. Sprawdzenie luki otwarcia poniżej Break-Even
-                        if d_open <= current_sl:
-                            r_gap = calc_net_r(d_open)
-                            trade.r_multiple = 0.5 * r_tp1_net + 0.5 * r_gap
-                            trade.exit_reason = "TP1+BE (Gap)"
-                            trade.exit_date = d_date
-                            trade.exit_price = d_open
-                            trade.holding_days = holding_days
-                            break
-                        # 2. Konserwatywna reguła Intraday: jeśli Low <= BE -> BE (przed TP2)
-                        elif d_low <= current_sl:
-                            r_be_net = calc_net_r(current_sl)
-                            trade.r_multiple = 0.5 * r_tp1_net + 0.5 * r_be_net
-                            trade.exit_reason = "TP1+BE"
-                            trade.exit_date = d_date
-                            trade.exit_price = current_sl
-                            trade.holding_days = holding_days
-                            break
-                        elif d_high >= tp2_price:
-                            # Zamknięcie pozostałych 50% na TP2
+                        trade.r_multiple = 0.5 * r_tp1_net + 0.5 * r_close
+                        trade.exit_reason = "TP1+TimeStop"
+                    trade.exit_date = dates[-1]
+                    trade.exit_price = last_close
+                    trade.holding_days = holding_days
+                    trade.tp1_hit = tp1_hit
+                    break
+
+                d_open = float(opens[curr_idx])
+                d_low = float(lows[curr_idx])
+                d_high = float(highs[curr_idx])
+                d_close = float(closes[curr_idx])
+                d_date = dates[curr_idx]
+
+                if not tp1_hit:
+                    # PRZED OSIĄGNIĘCIEM TP1:
+                    # 1. Sprawdzenie luki otwarcia (Overnight Gap poniżej SL)
+                    if d_open <= current_sl:
+                        trade.r_multiple = calc_net_r(d_open)
+                        trade.exit_reason = "SL (Gap)"
+                        trade.exit_date = d_date
+                        trade.exit_price = d_open
+                        trade.holding_days = holding_days
+                        break
+                    # 2. Reguła bezpieczeństwa Intraday: jeśli Low <= SL -> ZAWSZE SL (przed TP1)
+                    elif d_low <= current_sl:
+                        trade.r_multiple = calc_net_r(current_sl)
+                        trade.exit_reason = "SL"
+                        trade.exit_date = d_date
+                        trade.exit_price = current_sl
+                        trade.holding_days = holding_days
+                        break
+                    elif d_high >= tp1_price:
+                        # Realizacja 50% pozycji na TP1
+                        tp1_hit = True
+                        trade.tp1_hit = True
+                        trade.tp1_date = d_date
+                        # SL dla pozostałych 50% przestawiony na Break-Even
+                        current_sl = entry_price
+
+                        # Sprawdzenie czy w tym samym dniu osiągnięto również TP2
+                        if d_high >= tp2_price:
                             r_tp2_net = calc_net_r(tp2_price)
                             trade.r_multiple = 0.5 * r_tp1_net + 0.5 * r_tp2_net
                             trade.exit_reason = "TP1+TP2"
@@ -832,28 +963,55 @@ class ConfluenceBacktester:
                             trade.exit_price = tp2_price
                             trade.holding_days = holding_days
                             break
-
-                    # TIME STOP (DZIEŃ 20):
-                    if day_step == self.time_stop:
-                        r_close = calc_net_r(d_close)
-                        if not tp1_hit:
-                            trade.r_multiple = r_close
-                            trade.exit_reason = "TimeStop"
-                        else:
-                            trade.r_multiple = 0.5 * r_tp1_net + 0.5 * r_close
-                            trade.exit_reason = "TP1+TimeStop"
+                else:
+                    # PO OSIĄGNIĘCIU TP1 (POZOSTAŁE 50% POZYCJI Z SL NA BREAK-EVEN):
+                    # 1. Sprawdzenie luki otwarcia poniżej Break-Even
+                    if d_open <= current_sl:
+                        r_gap = calc_net_r(d_open)
+                        trade.r_multiple = 0.5 * r_tp1_net + 0.5 * r_gap
+                        trade.exit_reason = "TP1+BE (Gap)"
                         trade.exit_date = d_date
-                        trade.exit_price = d_close
-                        trade.holding_days = self.time_stop
+                        trade.exit_price = d_open
+                        trade.holding_days = holding_days
+                        break
+                    # 2. Konserwatywna reguła Intraday: jeśli Low <= BE -> BE (przed TP2)
+                    elif d_low <= current_sl:
+                        r_be_net = calc_net_r(current_sl)
+                        trade.r_multiple = 0.5 * r_tp1_net + 0.5 * r_be_net
+                        trade.exit_reason = "TP1+BE"
+                        trade.exit_date = d_date
+                        trade.exit_price = current_sl
+                        trade.holding_days = holding_days
+                        break
+                    elif d_high >= tp2_price:
+                        # Zamknięcie pozostałych 50% na TP2
+                        r_tp2_net = calc_net_r(tp2_price)
+                        trade.r_multiple = 0.5 * r_tp1_net + 0.5 * r_tp2_net
+                        trade.exit_reason = "TP1+TP2"
+                        trade.exit_date = d_date
+                        trade.exit_price = tp2_price
+                        trade.holding_days = holding_days
                         break
 
-                # Winsoryzacja skrajnych anomalii splitowych w historycznym cache
-                trade.r_multiple = min(trade.r_multiple, 15.0)
-                trades.append(trade)
-                # Zapobieganie nakładaniu pozycji na tym samym instrumencie (One Trade Per Ticker)
-                t += max(1, holding_days)
-            else:
-                t += 1
+                # TIME STOP (DZIEŃ 20):
+                if day_step == self.time_stop:
+                    r_close = calc_net_r(d_close)
+                    if not tp1_hit:
+                        trade.r_multiple = r_close
+                        trade.exit_reason = "TimeStop"
+                    else:
+                        trade.r_multiple = 0.5 * r_tp1_net + 0.5 * r_close
+                        trade.exit_reason = "TP1+TimeStop"
+                    trade.exit_date = d_date
+                    trade.exit_price = d_close
+                    trade.holding_days = self.time_stop
+                    break
+
+            # Winsoryzacja skrajnych anomalii splitowych w historycznym cache
+            trade.r_multiple = min(trade.r_multiple, 15.0)
+            trades.append(trade)
+            # Zapobieganie nakładaniu pozycji na tym samym instrumencie (One Trade Per Ticker)
+            t += max(1, holding_days)
 
         return trades
 
