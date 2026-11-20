@@ -130,6 +130,20 @@ class ETFScanner:
             logger.debug("Błąd ekstrakcji danych dla %s: %s", ticker, err)
             return None
 
+    @staticmethod
+    def is_etf_instrument(ticker: str, name: str, sector: str) -> bool:
+        """Rozpoznaje czy instrument jest funduszem ETF/ETC czy akcją pojedynczej spółki."""
+        t = str(ticker).strip().upper()
+        n = str(name).strip().upper()
+        s = str(sector).strip().upper()
+        if t.endswith((".DE", ".L", ".PA", ".AS", ".MI", ".MC", ".SW", ".VI", ".IR")):
+            return True
+        if any(k in n for k in ["ETF", "UCITS", "ETC", "ISHARES", "VANGUARD", "SPDR", "INVESCO", "XTRACKERS", "LYXOR", "AMUNDI"]):
+            return True
+        if any(k in s for k in ["INDEX", "ETF", "COMMODITIES", "FACTORS"]):
+            return True
+        return False
+
     def evaluate_ticker(
         self,
         ticker: str,
@@ -138,8 +152,15 @@ class ETFScanner:
         df: pd.DataFrame
     ) -> Optional[Dict[str, Any]]:
         liq_cfg = self.config.get("liquidity_filter", {})
-        min_vol_sma = liq_cfg.get("min_volume_sma_20", 50000)
-        min_dollar_vol = liq_cfg.get("min_dollar_volume", 1000000)
+        is_etf = self.is_etf_instrument(ticker, name, sector)
+
+        # Adaptacyjny dobór progów płynności (specyfika ETF UCITS vs Akcje)
+        if is_etf and "etfs_europe" in liq_cfg:
+            min_vol_sma = liq_cfg["etfs_europe"].get("min_volume_sma_20", 3000)
+            min_dollar_vol = liq_cfg["etfs_europe"].get("min_dollar_volume", 250000)
+        else:
+            min_vol_sma = liq_cfg.get("min_volume_sma_20", 30000)
+            min_dollar_vol = liq_cfg.get("min_dollar_volume", 1000000)
 
         # 1. FILTR PŁYNNOŚCI
         vol_series = df['Volume']
@@ -170,6 +191,11 @@ class ETFScanner:
         low_curr = float(curr['Low'])
         open_prev = float(prev['Open'])
         change_pct = ((close_curr - close_prev) / close_prev) * 100.0
+
+        # Ochrona przed załamaniem kursu spółki (Anti-Crash dla akcji):
+        # Unikamy łapania spadającego noża na spółce po wynikach/newsach o skrajnym tąpnięciu (< -6%)
+        if not is_etf and change_pct < -6.0:
+            return None
 
         rsi_val = float(curr['RSI_14'])
         rsi_prev_val = float(prev['RSI_14'])
@@ -278,6 +304,7 @@ class ETFScanner:
             "ticker": ticker,
             "name": name,
             "sector": sector,
+            "asset_type": "ETF" if is_etf else "Equity",
             "currency": currency,
             "close": close_curr,
             "change_pct": change_pct,
