@@ -1,4 +1,4 @@
-# ETF & Equity Confluence Scanner 📈🇪🇺🇺🇸
+# ETF & Equity Confluence Scanner 📈🇪🇺 🇺🇸
 
 Zaawansowany, modularny i odporny na błędy system skanowania ilościowego oraz testowania wstecznego dla **europejskich funduszy ETF UCITS** (XETRA `.DE`, LSE `.L`) oraz **płynnych akcji globalnych (USA / Europa)**, operujący na interwale dziennym (1D). 
 
