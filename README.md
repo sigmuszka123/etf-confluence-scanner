@@ -297,8 +297,6 @@ Oznacza to, że rzeczywista możliwość zawarcia transakcji może być większa
 
 Wyniki symulacji historycznej nie gwarantują podobnych rezultatów w przyszłości.
 
-Backtest nie eliminuje również wszystkich kosztów i ograniczeń rzeczywistego handlu, takich jak poślizg cenowy, spready, prowizje czy ograniczona płynność podczas gwałtownych ruchów rynkowych.
-
 ---
 
 ## Cel projektu
