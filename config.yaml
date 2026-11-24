@@ -4,7 +4,7 @@
 
 data:
   tickers_file: "tickers.csv"
-  period: "400d"
+  period: "2y"
   interval: "1d"
   batch_size: 50
 
