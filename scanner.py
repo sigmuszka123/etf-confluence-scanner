@@ -6,6 +6,7 @@ Główny moduł silnika skanera zintegrowany z generatorem wykresów i Audytorem
 import os
 import time
 import logging
+from collections import Counter
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 import pandas as pd
@@ -74,24 +75,13 @@ class ETFScanner:
         logger.info("Załadowano %d tickerów z pliku %s", len(df), csv_file)
         return df
 
-    def fetch_market_data(self, tickers: List[str]) -> Dict[str, pd.DataFrame]:
-        if not HAS_YFINANCE:
-            logger.error("Biblioteka yfinance jest niedostępna.")
-            return {}
-
-        data_cfg = self.config.get("data", {})
-        period = data_cfg.get("period", "400d")
-        interval = data_cfg.get("interval", "1d")
-        batch_size = max(1, int(data_cfg.get("batch_size", 50)))
-
-        logger.info(
-            "Pobieranie danych w paczkach po %d dla %d tickerów (period=%s, interval=%s)...",
-            batch_size,
-            len(tickers),
-            period,
-            interval,
-        )
-
+    def _download_in_batches(
+        self,
+        tickers: List[str],
+        period: str,
+        interval: str,
+        batch_size: int,
+    ) -> Dict[str, pd.DataFrame]:
         result: Dict[str, pd.DataFrame] = {}
         total_batches = (len(tickers) + batch_size - 1) // batch_size
 
@@ -108,25 +98,86 @@ class ETFScanner:
                     progress=False,
                 )
             except Exception as e:
-                logger.error("Błąd yf.download dla paczki %d/%d: %s", batch_idx, total_batches, e)
+                logger.error("Błąd yf.download (%s) dla paczki %d/%d: %s", period, batch_idx, total_batches, e)
                 continue
 
             if batch_df is None or batch_df.empty:
                 continue
 
+            min_rows = 1 if period == "5d" else 20
             for ticker in batch:
-                ticker_df = self._extract_single_ticker_df(batch_df, ticker)
+                ticker_df = self._extract_single_ticker_df(batch_df, ticker, min_rows=min_rows)
                 if ticker_df is not None and not ticker_df.empty:
                     result[ticker] = ticker_df
 
             if batch_idx < total_batches:
                 time.sleep(0.25)
 
+        return result
+
+    def fetch_market_data(self, tickers: List[str]) -> Dict[str, pd.DataFrame]:
+        if not HAS_YFINANCE:
+            logger.error("Biblioteka yfinance jest niedostępna.")
+            return {}
+
+        data_cfg = self.config.get("data", {})
+        period = data_cfg.get("period", "2y")
+        # Zamiana niestandardowego '400d' na natywny okres Yahoo '2y' (unika bugów z ostatnią świecą)
+        if period == "400d":
+            period = "2y"
+        interval = data_cfg.get("interval", "1d")
+        batch_size = max(1, int(data_cfg.get("batch_size", 50)))
+
+        logger.info(
+            "Pobieranie danych w paczkach po %d dla %d tickerów (period=%s, interval=%s)...",
+            batch_size,
+            len(tickers),
+            period,
+            interval,
+        )
+
+        result = self._download_in_batches(tickers, period=period, interval=interval, batch_size=batch_size)
+
+        if result:
+            date_counts = Counter(pd.Timestamp(df.index[-1]).strftime("%Y-%m-%d") for df in result.values())
+            logger.info("Rozkład dat ostatnich świec (po %s): %s", period, dict(date_counts.most_common(5)))
+
+        # Dogrywka (workaround na bug Yahoo/yfinance z NaN na ostatniej świecy dla długich okresów)
+        stale_tickers = [t for t, df in result.items() if not self.is_data_fresh(df, t)]
+        if stale_tickers and interval == "1d":
+            logger.info(
+                "Wykryto %d tickerów bez najnowszej świecy. Uruchamiam dogrywkę period='5d'...",
+                len(stale_tickers),
+            )
+            recent_data = self._download_in_batches(
+                stale_tickers, period="5d", interval=interval, batch_size=batch_size
+            )
+            patched = 0
+            for t, df_recent in recent_data.items():
+                df_hist = result[t]
+                if df_recent.index[-1] > df_hist.index[-1]:
+                    merged = pd.concat([df_hist, df_recent])
+                    merged = merged[~merged.index.duplicated(keep="last")].sort_index()
+                    result[t] = merged
+                    patched += 1
+
+            date_counts_after = Counter(pd.Timestamp(df.index[-1]).strftime("%Y-%m-%d") for df in result.values())
+            logger.info(
+                "Dogrywka '5d' uzupełniła %d / %d tickerów. Rozkład dat po dogrywce: %s",
+                patched,
+                len(stale_tickers),
+                dict(date_counts_after.most_common(5)),
+            )
+
         logger.info("Pomyślnie przetworzono dane dla %d / %d tickerów.", len(result), len(tickers))
         return result
 
     @staticmethod
-    def _extract_single_ticker_df(batch_df: pd.DataFrame, ticker: str) -> Optional[pd.DataFrame]:
+    def _extract_single_ticker_df(
+        batch_df: pd.DataFrame,
+        ticker: str,
+        min_rows: int = 20,
+    ) -> Optional[pd.DataFrame]:
         try:
             if isinstance(batch_df.columns, pd.MultiIndex):
                 if ticker in batch_df.columns.levels[0]:
@@ -146,9 +197,14 @@ class ETFScanner:
             # Usuń niepełne świece (czasem Yahoo zwraca wiersz z NaN w Open/High/Low)
             df_t = df_t.dropna(subset=["Open", "High", "Low", "Close"])
             df_t = df_t[df_t["Close"] > 0]
-            if len(df_t) < 20:
+            if len(df_t) < min_rows:
                 return None
 
+            # Ujednolicenie indeksu (bez przesunięcia daty przez konwersję do UTC)
+            idx = pd.to_datetime(df_t.index)
+            if idx.tz is not None:
+                idx = idx.tz_localize(None)
+            df_t.index = idx.normalize()
             df_t = df_t.sort_index()
             return df_t
         except Exception as err:
@@ -167,7 +223,7 @@ class ETFScanner:
         last_candle_date = pd.Timestamp(df.index[-1]).date()
         now_cet = datetime.now(WARSAW_TZ) if WARSAW_TZ is not None else datetime.now()
 
-        # Po 22:00 CET oczekujemy dzisiejszej sesji; w nocy/rano (np. 01:51) poprzedniego dnia roboczego
+        # Po 22:00 CET oczekujemy dzisiejszej sesji; w nocy/rano poprzedniego dnia roboczego
         expected_date = now_cet.date() if now_cet.hour >= 22 else (now_cet.date() - timedelta(days=1))
         while expected_date.weekday() >= 5:
             expected_date -= timedelta(days=1)
@@ -439,7 +495,7 @@ class ETFScanner:
         """
         Główna pętla wykonawcza:
         1. Wczytuje bazę tickerów.
-        2. Pobiera dane historyczne w paczkach.
+        2. Pobiera dane historyczne w paczkach (+ dogrywka 5d dla zlagowanych świec).
         3. Weryfikuje świeżość danych (brak cichego cofania do starej sesji).
         4. Filtruje matematycznie przez evaluate_ticker.
         5. Renderuje wykres PNG (prawdziwa SMA200, poziomy SL/TP1) i pyta Agenta AI.
