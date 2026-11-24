@@ -39,6 +39,13 @@ class AuditResult(BaseModel):
     verdict: Literal["PASS", "REJECT"] = Field(
         description="'PASS' jeśli veto_rule == 'NONE'; 'REJECT' jeśli wystąpił którykolwiek warunek VETO."
     )
+    approval_reasons: List[str] = Field(
+        description=(
+            "Jeśli verdict == 'PASS': 2-3 konkretne techniczne argumenty ZA zatwierdzeniem setupu "
+            "(np. zachowana makrostruktura nad SMA200, czysta przestrzeń do TP1, wygasanie podaży/obrona wsparcia). "
+            "Jeśli verdict == 'REJECT': zwróć pustą listę []."
+        )
+    )
     confidence_score: int = Field(
         description="Pewność oceny w skali całkowitej od 1 do 10."
     )
@@ -66,6 +73,9 @@ TWARDE WARUNKI VETO (zwróć "REJECT" i odpowiedni kod veto_rule, jeśli zachodz
 2. NEWS_SHOCK: Pionowa wyprzedaż z dużą luką spadkową (gap down) lub ekstremalnym skokiem wolumenu podażowego (szok wynikowy/kapitulacja), gdzie ostatnia świeca zamyka się na samym minimum bez żadnego śladu wyhamowania.
 3. OVERHEAD_SUPPLY: Wyraźny, wielokrotnie testowany szczyt cenowy lub strefa konsolidacji/dystrybucji z ostatnich 2-3 miesięcy leżąca bezpośrednio nad ceną i wyraźnie PONIŻEJ poziomu TP1, realnie blokująca dojście do celu.
 4. REJECTION_WICK: Ostatnia świeca ma bardzo długi górny knot (ponad 50% jej całkowitej wysokości) z zamknięciem blisko minimum, sygnalizujący agresywną podaż na próbie odbicia.
+
+UZASADNIENIE PRZY ZATWIERDZENIU (PASS):
+- Gdy wydajesz werdykt "PASS", zawsze wypełnij pole `approval_reasons` 2-3 konkretnymi obserwacjami z wykresu, które wspierają scenariusz odbicia (np. stabilna makrostruktura, czyste pole ruchu do TP1, widoczna obrona lokalnego wsparcia lub dolny knot popytowy, brak anomalii wolumenowej).
 """
 
 
@@ -83,7 +93,12 @@ class AIAuditor:
         Przesyła wygenerowany wykres PNG wraz z kluczowymi poziomami cenowymi do Gemini 3.8 Flash.
         """
         if not self.client:
-            return {"verdict": "BYPASS", "actionable_plan": "Brak konfiguracji AI API."}
+            return {
+                "verdict": "BYPASS",
+                "veto_rule": "NONE",
+                "approval_reasons": [],
+                "actionable_plan": "Brak konfiguracji AI API.",
+            }
 
         try:
             change_pct = float(setup["change_pct"])
@@ -96,7 +111,8 @@ class AIAuditor:
                 f"- Poziom Stop Loss: {setup['sl_price']} (-{sl_pct:.2f}%)\n"
                 f"- Poziom TP1 (cel bazowy): {setup['tp1_price']} | Poziom TP2: {setup['tp2_price']}\n"
                 f"- Kontekst wyprzedania: RSI(14) = {setup['rsi_val']:.1f} | RVol = {setup['rvol']:.2f}x\n"
-                "Sprawdź wyłącznie, czy na wykresie nie zachodzi żaden z 4 twardych warunków VETO."
+                "Sprawdź, czy na wykresie zachodzi którykolwiek z 4 warunków VETO. "
+                "Jeśli nie, zatwierdź setup (PASS) i podaj konkretne argumenty w approval_reasons."
             )
 
             with Image.open(chart_path) as image:
@@ -123,6 +139,10 @@ class AIAuditor:
                     setup["ticker"],
                 )
                 result["verdict"] = "PASS"
+                if not result.get("approval_reasons"):
+                    result["approval_reasons"] = [
+                        "Brak twardych warunków VETO w analizie strukturalnej wykresu."
+                    ]
 
             return result
 
@@ -131,5 +151,6 @@ class AIAuditor:
             return {
                 "verdict": "ERROR",
                 "veto_rule": "NONE",
+                "approval_reasons": [],
                 "actionable_plan": f"Błąd wykonania zapytania AI: {str(e)}",
             }
