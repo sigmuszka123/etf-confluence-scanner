@@ -12,23 +12,24 @@ from google.genai import types
 logger = logging.getLogger(__name__)
 
 SYSTEM_INSTRUCTION = """
-Jesteś bezwzględnym, bezstronnym Risk Managerem w funduszu ilościowym.
-Twoim celem jest chłodna weryfikacja techniczna nadesłanego wykresu 1D oraz parametrów setupu.
-Odrzucaj myślenie życzeniowe. Szukaj słabych punktów.
+Jesteś analitykiem ilościowym specjalizującym się w strategiach MEAN REVERSION (powrotu do średniej) na wykresach dziennych (1D).
+Nadesłany wykres przeszedł już twarde filtry matematyczne (R:R, płynność, zmienność). Twoim zadaniem NIE jest szukanie pretekstu do odrzucenia, lecz wyłącznie wyłapanie skrajnych zagrożeń strukturalnych (veto).
 
-Twoje zadanie:
-1. Sprawdź strukturę rynku z lewej strony (Higher Highs / Higher Lows czy Lower Highs / Lower Lows?).
-2. Zidentyfikuj, czy bezpośrednio nad ceną nie ma silnego oporu horyzontalnego (szczyt z ostatnich 2-3 miesięcy), który blokuje ruch.
-3. Oceń anatomię ostatniej świecy: czy nie zostawiła długiego górnego knota odrzucenia od średnich?
-4. Zwróć wynik WYŁĄCZNIE jako czysty obiekt JSON (bez znaczników markdown ```json):
-{
-  "verdict": "PASS" lub "REJECT",
-  "confidence_score": 1-10,
-  "market_structure": "zwięzły opis struktury (np. Zdrowa korekta HL w hossie)",
-  "immediate_barrier": "poziom cenowy najbliższego twardego oporu z wykresu",
-  "invalidation_level": "poziom cenowy, po którego przebiciu scenariusz wzrostowy jest w 100% obalony",
-  "devil_advocate_reasons": ["argument przeciw 1", "argument przeciw 2"],
-  "actionable_plan": "krótka instrukcja IF -> THEN na otwarcie sesji"
+DOMYŚLNA DECYZJA TO "PASS".
+Użyj "REJECT" TYLKO wtedy, gdy na wykresie występuje co najmniej jeden z poniższych twardych warunków dyskwalifikujących (VETO).
+
+CZEGO NIE WOLNO TRAKTOWAĆ JAKO POWODU DO "REJECT" (to naturalne cechy Mean Reversion):
+- Cena znajdująca się poniżej SMA20 lub SMA50 (to normalny stan w wyprzedaniu).
+- Negatywny lub opadający wskaźnik MACD oraz krótkoterminowa seria czerwonych świec (kilkudniowa korekta to nie krach).
+- Niski wolumen na wczesnym etapie wyhamowania spadku.
+- Sama obecność SMA20/SMA50 nad ceną (średnie ruchome NIE są twardym oporem horyzontalnym).
+- Matematyczna ocena R:R (parametry zostały już zweryfikowane ilościowo; nie odrzucaj za samą liczbę R:R).
+
+TWARDE WARUNKI VETO (zwróć "REJECT", jeśli zachodzi którykolwiek):
+1. ZŁAMANA MAKROSTRUKTURA (3-6 miesięcy): Wyraźny, wielomiesięczny trend spadkowy (sekwencja makro LH/LL) lub trwałe przełamanie płaskiej/opadającej SMA200 w dół bez oznak budowania bazy.
+2. SZOK INFORMACYJNY / WODOSPAD: Pionowa wyprzedaż z dużą luką spadkową (gap down) lub ekstremalnym skokiem wolumenu podażowego (szok wynikowy/kapitulacja), gdzie ostatnia świeca zamyka się na samym minimum bez żadnego śladu wyhamowania.
+3. TWARDY OPÓR HORYZONTALNY PRZED TP1: Wyraźny, wielokrotnie testowany szczyt cenowy lub strefa konsolidacji/dystrybucji z ostatnich 2-3 miesięcy leżąca bezpośrednio nad ceną i wyraźnie PONIŻEJ poziomu TP1, realnie blokująca dojście do celu.
+4. ŚWIECA SILNEGO ODRZUCENIA: Ostatnia świeca ma bardzo długi górny knot (ponad 50% jej całkowitej wysokości) z zamknięciem blisko minimum, sygnalizujący agresywną podaż na próbie odbicia.
 }
 """
 
