@@ -568,6 +568,16 @@ class ETFScanner:
                     ai_verdict.get("confidence_score", "N/A"),
                     ai_verdict.get("approval_reasons", []),
                 )
+            elif verdict == "WATCHLIST":
+                qualified_setups.append(setup)
+                logger.info(
+                    "👀 [%s | %s] DODANY DO WATCHLISTY PRZEZ AI (Werdykt: %s, Score: %s/10 | Za: %s)",
+                    ticker,
+                    bar_dt,
+                    verdict,
+                    ai_verdict.get("confidence_score", "N/A"),
+                    ai_verdict.get("approval_reasons", []),
+                )
             elif verdict == "ERROR":
                 logger.error(
                     "⚠️ [%s | %s] BŁĄD AUDYTU AI: %s",
